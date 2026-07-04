@@ -11,6 +11,7 @@ app:
 	rm -rf $(APP)
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources $(APP)/Contents/Frameworks
 	cp $(BIN) $(APP)/Contents/MacOS/$(APP_NAME)
+	install_name_tool -add_rpath @executable_path/../Frameworks $(APP)/Contents/MacOS/$(APP_NAME)
 	cp -R .build/$(CONFIG)/$(APP_NAME)_$(APP_NAME).bundle $(APP)/Contents/Resources/
 	cp Support/AppIcon.icns $(APP)/Contents/Resources/
 	cp Support/Info.plist $(APP)/Contents/Info.plist
