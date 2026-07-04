@@ -42,7 +42,7 @@
   <li>Fixed a glitch where switching workspaces could briefly clip the top tab under the "TABS" label.</li>
 </ul>
       ]]></description>
-      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.4/Sill-0.1.4.zip" length="2461208" type="application/octet-stream" sparkle:edSignature="HukvYlyCeqBOtFDR7iLn2TjtaFL/rvUR6UpCRetx7cF9TulLJbxRlvk0NsGowboscs9ruf1xEoATYiKLqe6bBw==" />
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.4/sill.zip" length="2461208" type="application/octet-stream" sparkle:edSignature="HukvYlyCeqBOtFDR7iLn2TjtaFL/rvUR6UpCRetx7cF9TulLJbxRlvk0NsGowboscs9ruf1xEoATYiKLqe6bBw==" />
     </item>
   </channel>
 </rss>
