@@ -10,7 +10,7 @@ REPO="keranm/Sill"
 NOTARY_PROFILE="sill-notary"
 SPARKLE_BIN="scripts/sparkle-tools/bin"
 APP="build/Sill.app"
-DIST_ZIP="build/Sill-${VERSION}.zip"
+DIST_ZIP="build/sill.zip"
 SUBMIT_ZIP="build/Sill-notarize-submission.zip"
 TAG="v${VERSION}"
 
@@ -42,7 +42,7 @@ APPCAST_ARGS=(
   --feed-url "https://raw.githubusercontent.com/${REPO}/main/appcast.xml"
   --version "$VERSION"
   --build "$BUILD"
-  --url "https://github.com/${REPO}/releases/download/${TAG}/Sill-${VERSION}.zip"
+  --url "https://github.com/${REPO}/releases/download/${TAG}/sill.zip"
   --sig-line "$SIG_LINE"
 )
 if [ -n "$NOTES_FILE" ]; then
