@@ -157,6 +157,7 @@ struct RailView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 24)
+        .id(store.activeWorkspaceID)
     }
 
     // MARK: Foot — dormant workspaces are faint facts, never badged
