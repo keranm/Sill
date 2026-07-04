@@ -3,7 +3,8 @@
 # Usage: scripts/release.sh <version, e.g. 0.2.0>
 set -euo pipefail
 
-VERSION="${1:?Usage: scripts/release.sh <version>}"
+VERSION="${1:?Usage: scripts/release.sh <version> <notes-file>}"
+NOTES_FILE="${2:-}"
 BUILD="$(date -u +%Y%m%d%H%M)"
 REPO="keranm/Sill"
 NOTARY_PROFILE="sill-notary"
@@ -36,13 +37,18 @@ SIG_LINE="$("$SPARKLE_BIN/sign_update" "$DIST_ZIP")"
 echo "    $SIG_LINE"
 
 echo "==> Updating appcast.xml"
-python3 scripts/update_appcast.py \
-  --appcast appcast.xml \
-  --feed-url "https://raw.githubusercontent.com/${REPO}/main/appcast.xml" \
-  --version "$VERSION" \
-  --build "$BUILD" \
-  --url "https://github.com/${REPO}/releases/download/${TAG}/Sill-${VERSION}.zip" \
+APPCAST_ARGS=(
+  --appcast appcast.xml
+  --feed-url "https://raw.githubusercontent.com/${REPO}/main/appcast.xml"
+  --version "$VERSION"
+  --build "$BUILD"
+  --url "https://github.com/${REPO}/releases/download/${TAG}/Sill-${VERSION}.zip"
   --sig-line "$SIG_LINE"
+)
+if [ -n "$NOTES_FILE" ]; then
+  APPCAST_ARGS+=(--notes-html "$NOTES_FILE")
+fi
+python3 scripts/update_appcast.py "${APPCAST_ARGS[@]}"
 
 echo "==> Committing, tagging, and pushing"
 git add Support/Info.plist appcast.xml
@@ -52,9 +58,13 @@ git push origin main
 git push origin "$TAG"
 
 echo "==> Creating GitHub release"
+RELEASE_NOTES_ARGS=(--generate-notes)
+if [ -n "$NOTES_FILE" ]; then
+  RELEASE_NOTES_ARGS=(--notes-file "$NOTES_FILE")
+fi
 gh release create "$TAG" "$DIST_ZIP" \
   --repo "$REPO" \
   --title "Sill ${TAG}" \
-  --generate-notes
+  "${RELEASE_NOTES_ARGS[@]}"
 
 echo "==> Done: ${TAG} released"

@@ -23,8 +23,13 @@ ITEM_TEMPLATE = """    <item>
       <sparkle:version>{build}</sparkle:version>
       <sparkle:shortVersionString>{version}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>{min_os}</sparkle:minimumSystemVersion>
-      <enclosure url="{url}" length="{length}" type="application/octet-stream" {sig_attr} />
+{description}      <enclosure url="{url}" length="{length}" type="application/octet-stream" {sig_attr} />
     </item>
+"""
+
+DESCRIPTION_TEMPLATE = """      <description><![CDATA[
+{html}
+      ]]></description>
 """
 
 
@@ -37,6 +42,7 @@ def main() -> int:
     parser.add_argument("--url", required=True)
     parser.add_argument("--min-os", default="14.0")
     parser.add_argument("--sig-line", required=True, help='output of sign_update, e.g. sparkle:edSignature="..." length="123"')
+    parser.add_argument("--notes-html", help="path to a small HTML fragment shown in the Sparkle update dialog")
     args = parser.parse_args()
 
     sig_match = re.search(r'sparkle:edSignature="([^"]+)"', args.sig_line)
@@ -49,11 +55,18 @@ def main() -> int:
     length = length_match.group(1)
     pub_date = datetime.datetime.now(datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
+    description = ""
+    if args.notes_html:
+        with open(args.notes_html, "r", encoding="utf-8") as f:
+            html = f.read().strip()
+        description = DESCRIPTION_TEMPLATE.format(html=html)
+
     new_item = ITEM_TEMPLATE.format(
         version=args.version,
         build=args.build,
         pub_date=pub_date,
         min_os=args.min_os,
+        description=description,
         url=args.url,
         length=length,
         sig_attr=sig_attr,
