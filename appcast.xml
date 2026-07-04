@@ -5,5 +5,13 @@
     <link>https://raw.githubusercontent.com/keranm/Sill/main/appcast.xml</link>
     <description>Release updates for Sill.</description>
     <language>en</language>
+    <item>
+      <title>Version 0.1.1</title>
+      <pubDate>Sat, 04 Jul 2026 05:23:02 +0000</pubDate>
+      <sparkle:version>202607040522</sparkle:version>
+      <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.1/Sill-0.1.1.zip" length="2428283" type="application/octet-stream" sparkle:edSignature="WO6tjQ7MCCZzreTAtBie72bvyNgEDSSFh2rrQuVTadbEQbWEcOXFgzc9Me0o8ArWOzTFK/P/pHbViZhQ7a4nBA==" />
+    </item>
   </channel>
 </rss>
