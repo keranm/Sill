@@ -1,4 +1,5 @@
 import SwiftUI
+import Sparkle
 
 @main
 struct SillApp: App {
@@ -101,6 +102,12 @@ struct SillApp: App {
                 }
             }
 
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    appDelegate.updaterController.checkForUpdates(nil)
+                }
+            }
+
             CommandGroup(after: .toolbar) {
                 Button("Open Location") {
                     NotificationCenter.default.post(name: .openGoTo, object: nil)
@@ -141,6 +148,11 @@ private func exportMetrics(store: TabStore) {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor var store: TabStore?
+    let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Light mode first (PRD §8.1); tokens keep dark cheap for later.

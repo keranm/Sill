@@ -4,3 +4,4 @@ build/
 *.xcodeproj
 .swiftpm/
 .claude/settings.local.json
+scripts/sparkle-tools/

@@ -28,6 +28,14 @@
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/keranm/Sill/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>afxqtu/ZcT4TXCd61Don9WqgdNItCFR5YXid7/oDsZE=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
