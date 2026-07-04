@@ -13,5 +13,13 @@
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.1/Sill-0.1.1.zip" length="2428283" type="application/octet-stream" sparkle:edSignature="WO6tjQ7MCCZzreTAtBie72bvyNgEDSSFh2rrQuVTadbEQbWEcOXFgzc9Me0o8ArWOzTFK/P/pHbViZhQ7a4nBA==" />
     </item>
+    <item>
+      <title>Version 0.1.2</title>
+      <pubDate>Sat, 04 Jul 2026 07:36:57 +0000</pubDate>
+      <sparkle:version>202607040736</sparkle:version>
+      <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.2/Sill-0.1.2.zip" length="2451204" type="application/octet-stream" sparkle:edSignature="2uHqZa8ZlGuOVBsUkaM/U11gX+pcvjAYiJU8C/Oi6d//smTBW5uj9jOyfrMvLvI4AUW3jbxCiOXOHjlzgjkDAQ==" />
+    </item>
   </channel>
 </rss>
