@@ -128,6 +128,15 @@ struct SillApp: App {
                     store.selectedTab?.webView?.goForward()
                 }
                 .keyboardShortcut("]", modifiers: .command)
+
+                Button("Copy Address") {
+                    guard let urlString = store.selectedTab?.url?.absoluteString else { return }
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(urlString, forType: .string)
+                    NotificationCenter.default.post(name: .urlCopied, object: nil)
+                }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .disabled(store.selectedTab?.url == nil)
             }
         }
     }

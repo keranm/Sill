@@ -2,6 +2,7 @@ import SwiftUI
 
 extension Notification.Name {
     static let openGoTo = Notification.Name("sill.openGoTo")
+    static let urlCopied = Notification.Name("sill.urlCopied")
 }
 
 /// The page header (D2a): back/forward and the address readout.
@@ -14,6 +15,8 @@ struct HeaderView: View {
     @State private var explanationShown = false
     @State private var annoyanceShown = false
     @State private var annoyanceLogged = false
+    @State private var showCopiedConfirmation = false
+    @State private var copiedConfirmationTask: Task<Void, Never>?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -28,7 +31,16 @@ struct HeaderView: View {
 
             readout
 
+            if showCopiedConfirmation {
+                Text("Copied")
+                    .font(Tokens.font(11.5))
+                    .foregroundStyle(Tokens.inkGhost)
+                    .transition(.opacity)
+            }
+
             Spacer()
+
+            shareButton
 
             annoyanceButton
 
@@ -38,6 +50,36 @@ struct HeaderView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        .animation(.easeOut(duration: 0.15), value: showCopiedConfirmation)
+        .onReceive(NotificationCenter.default.publisher(for: .urlCopied)) { _ in
+            showCopiedConfirmation = true
+            copiedConfirmationTask?.cancel()
+            copiedConfirmationTask = Task {
+                try? await Task.sleep(for: .seconds(1.4))
+                guard !Task.isCancelled else { return }
+                showCopiedConfirmation = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var shareButton: some View {
+        if let url = store.selectedTab?.url {
+            ShareLink(item: url) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(Tokens.inkGhost)
+                    .frame(width: 24, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Share")
+        } else {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(Tokens.inkGhost.opacity(0.5))
+                .frame(width: 24, height: 22)
+        }
     }
 
     /// The one-tap "that was annoying" counter (PRD §4.9): friction moments,
