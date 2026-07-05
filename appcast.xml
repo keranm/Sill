@@ -108,5 +108,18 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.8/sill.zip" length="2576290" type="application/octet-stream" sparkle:edSignature="yOl2cGI2hT/AIS2NZzzd/N2Cxnvp2kwVp02yWBxvD6zv37E7SHv/vgvytKFZvWPDqdHoNWtxf8T6Y6X5XA9mBA==" />
     </item>
+    <item>
+      <title>Version 0.1.9</title>
+      <pubDate>Sun, 05 Jul 2026 08:33:13 +0000</pubDate>
+      <sparkle:version>202607050832</sparkle:version>
+      <sparkle:shortVersionString>0.1.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+  <li>Added a plain <b>+</b> button next to the workspace name for creating a new workspace — no need to already know that clicking the workspace name opens a menu.</li>
+</ul>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.9/sill.zip" length="2578601" type="application/octet-stream" sparkle:edSignature="PXVzwzlo2eau4Y3mzvr6rkE321iQZ1D9qb5iUlYLupvaWlgUS4bSQlgVgPDilqI86xjMrMMB/5NFq1jl/DCoCQ==" />
+    </item>
   </channel>
 </rss>
