@@ -121,5 +121,18 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.9/sill.zip" length="2578601" type="application/octet-stream" sparkle:edSignature="PXVzwzlo2eau4Y3mzvr6rkE321iQZ1D9qb5iUlYLupvaWlgUS4bSQlgVgPDilqI86xjMrMMB/5NFq1jl/DCoCQ==" />
     </item>
+    <item>
+      <title>Version 0.1.10</title>
+      <pubDate>Sun, 05 Jul 2026 08:43:50 +0000</pubDate>
+      <sparkle:version>202607050843</sparkle:version>
+      <sparkle:shortVersionString>0.1.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+  <li><b>Fixed:</b> Pinned Tabs, Favorites, and favicons were treating a subdomain like <code>home.example.com</code> as the same site as <code>example.com</code> — showing the wrong favicon, and letting a pinned tab's anchor-to-its-site behavior misfire for self-hosted setups (Home Assistant and similar). Subdomains are now always treated as distinct sites, as they should be.</li>
+</ul>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.10/sill.zip" length="2578836" type="application/octet-stream" sparkle:edSignature="E4MbPAeFuy1b+7asY35e0G9VKrURaqVyHOAtlT8eG9un9vxxLqPz3sIJtJuTzRYE/qX2FWnnlo4dofLKgj/UAg==" />
+    </item>
   </channel>
 </rss>
