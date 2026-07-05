@@ -42,7 +42,7 @@ struct SillApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("New Tab") {
                     store.newTab()
-                    NotificationCenter.default.post(name: .focusRailField, object: nil)
+                    NotificationCenter.default.post(name: .focusHomeField, object: nil)
                 }
                 .keyboardShortcut("t", modifiers: .command)
 

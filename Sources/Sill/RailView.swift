@@ -1,7 +1,6 @@
 import SwiftUI
 
 extension Notification.Name {
-    static let focusRailField = Notification.Name("sill.focusRailField")
     static let newWorkspace = Notification.Name("sill.newWorkspace")
 }
 
@@ -45,9 +44,6 @@ struct RailView: View {
         }
         .frame(width: Tokens.railWidth)
         .background(Tokens.canvas)
-        .onReceive(NotificationCenter.default.publisher(for: .focusRailField)) { _ in
-            fieldFocused = true
-        }
         .onReceive(NotificationCenter.default.publisher(for: .newWorkspace)) { _ in
             namingNew = true
             switcherShown = true
@@ -135,7 +131,7 @@ struct RailView: View {
 
             Button {
                 store.newTab()
-                fieldFocused = true
+                NotificationCenter.default.post(name: .focusHomeField, object: nil)
             } label: {
                 HStack(spacing: 7) {
                     Image(systemName: "plus")
