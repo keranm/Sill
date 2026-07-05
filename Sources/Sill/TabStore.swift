@@ -15,8 +15,17 @@ final class TabStore {
     private(set) var activeWorkspaceID: Workspace.ID!
     let downloads = DownloadsStore()
 
+    /// Global, workspace-independent — reachable from every workspace.
+    private(set) var favorites: [Favorite] = []
+
     /// "Research, as you left it — 12 tabs" (D2a restore transition).
     private(set) var restoreBanner: String?
+
+    /// Glance (Arc's "Peek"): a lightweight overlay shown when a link inside
+    /// a Pinned/Favorited tab points outside its home domain. Non-nil shows
+    /// the overlay in ShellView; reachable here (not view-local @State) so
+    /// the global Cmd-W command can dismiss it instead of closing a tab.
+    var glanceURL: URL?
 
     @ObservationIgnored private var db: Database!
     @ObservationIgnored private lazy var webKitDelegate = WebKitDelegate(store: self)
@@ -38,8 +47,10 @@ final class TabStore {
             let path = try databasePath ?? Self.defaultDatabasePath()
             db = try Database(path: path)
             try createSchema()
+            migrateColumns()
             observations = ObservationStore(db: db)
             try loadWorkspaces()
+            try loadFavorites()
             migrateLegacySessionIfNeeded()
         } catch {
             fatalError("Sill cannot open its database: \(error)")
@@ -115,7 +126,18 @@ final class TabStore {
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS favorite (
+                id TEXT PRIMARY KEY,
+                sort INTEGER NOT NULL,
+                url TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT ''
+            );
             """)
+    }
+
+    private func migrateColumns() {
+        try? db.execute("ALTER TABLE tab_snapshot ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
+        try? db.execute("ALTER TABLE tab_snapshot ADD COLUMN pinned_url TEXT")
     }
 
     private func loadWorkspaces() throws {
@@ -129,7 +151,7 @@ final class TabStore {
                 isEverythingElse: row.int("is_everything_else") == 1
             )
             let tabRows = try db.query(
-                "SELECT id, url, title, scroll_y, is_selected FROM tab_snapshot WHERE workspace_id = ? ORDER BY sort",
+                "SELECT id, url, title, scroll_y, is_selected, is_pinned, pinned_url FROM tab_snapshot WHERE workspace_id = ? ORDER BY sort",
                 [.text(idText)]
             )
             for tabRow in tabRows {
@@ -139,6 +161,8 @@ final class TabStore {
                     url: tabRow.text("url").flatMap(URL.init(string:)),
                     title: tabRow.text("title") ?? "New Tab",
                     scrollY: tabRow.real("scroll_y") ?? 0,
+                    isPinned: tabRow.int("is_pinned") == 1,
+                    pinnedURL: tabRow.text("pinned_url").flatMap(URL.init(string:)),
                     onStateChange: { [weak self] in self?.persistSession() }
                 )
                 workspace.tabs.append(tab)
@@ -158,6 +182,26 @@ final class TabStore {
             activeWorkspaceID = activeID
         } else {
             activeWorkspaceID = workspaces.first?.id
+        }
+    }
+
+    private func loadFavorites() throws {
+        let rows = try db.query("SELECT id, url, title FROM favorite ORDER BY sort")
+        favorites = rows.compactMap { row in
+            guard let idText = row.text("id"), let id = UUID(uuidString: idText),
+                  let urlText = row.text("url"), let url = URL(string: urlText) else { return nil }
+            return Favorite(id: id, url: url, title: row.text("title") ?? "")
+        }
+    }
+
+    private func persistFavorites() {
+        guard let db else { return }
+        try? db.run("DELETE FROM favorite")
+        for (index, favorite) in favorites.enumerated() {
+            try? db.run(
+                "INSERT INTO favorite (id, sort, url, title) VALUES (?,?,?,?)",
+                [.text(favorite.id.uuidString), .int(Int64(index)), .text(favorite.url.absoluteString), .text(favorite.title)]
+            )
         }
     }
 
@@ -210,6 +254,18 @@ final class TabStore {
     // MARK: - Tab accessors (the views' surface)
 
     var tabs: [BrowserTab] { activeWorkspace.tabs }
+
+    /// Pinned Tabs (PRD-adjacent, owner-requested): tabs you want to stick
+    /// around, shown above the regular list, never auto-archived. Excludes
+    /// tabs opened from a Favorite — the favorite chip *is* that tab, so it
+    /// isn't also listed here (no duplicate row).
+    var pinnedTabs: [BrowserTab] { activeWorkspace.tabs.filter { $0.isPinned && !isFavoriteBacked($0) } }
+    var unpinnedTabs: [BrowserTab] { activeWorkspace.tabs.filter { !$0.isPinned } }
+
+    private func isFavoriteBacked(_ tab: BrowserTab) -> Bool {
+        guard let domain = tab.pinnedHomeDomain else { return false }
+        return favorites.contains { HostDisplay.registrableDomain(of: $0.url.host() ?? "") == domain }
+    }
 
     var selectedTabID: BrowserTab.ID? {
         get { activeWorkspace.selectedTabID }
@@ -419,9 +475,102 @@ final class TabStore {
         return nil
     }
 
+    /// Reorders the unpinned list only (the rail renders pinned tabs in their
+    /// own, separately-ordered section) — pinned tabs keep their existing
+    /// slots in the underlying array; source/destination are indices into
+    /// `unpinnedTabs`, not the full array.
     func moveTabs(from source: IndexSet, to destination: Int) {
-        activeWorkspace.tabs.move(fromOffsets: source, toOffset: destination)
+        var reordered = unpinnedTabs
+        reordered.move(fromOffsets: source, toOffset: destination)
+        var next = reordered.makeIterator()
+        activeWorkspace.tabs = activeWorkspace.tabs.map { $0.isPinned ? $0 : next.next()! }
         persistSession()
+    }
+
+    func pin(_ tab: BrowserTab) {
+        tab.pin()
+        persistSession()
+        if let url = tab.url {
+            discoverAndCacheFavicon(for: url, sourceTab: tab)
+        }
+    }
+
+    func unpin(_ tab: BrowserTab) {
+        tab.unpin()
+        persistSession()
+    }
+
+    /// "Reset Tab": back to the URL it was pinned at.
+    func resetPinnedTab(_ tab: BrowserTab) {
+        guard let pinnedURL = tab.pinnedURL else { return }
+        materialize(tab)
+        tab.load(pinnedURL)
+    }
+
+    /// Promotes a Quick Look tab (materialized outside any workspace) into a
+    /// real one, preserving its already-loaded webview and session.
+    func adopt(_ tab: BrowserTab, into workspace: Workspace) {
+        workspace.tabs.append(tab)
+        workspace.selectedTabID = tab.id
+        persistTabs(of: workspace)
+        observations.recordTabEvent(kind: "tab_open", workspaceID: workspace.id.uuidString)
+    }
+
+    // MARK: - Favorites ("Pinned Tabs accessible in every Space")
+
+    func addFavorite(title: String, url: URL, sourceTab: BrowserTab?) {
+        guard favorites.count < Favorite.maxCount else { return }
+        let domain = HostDisplay.registrableDomain(of: url.host() ?? url.absoluteString)
+        guard !favorites.contains(where: { HostDisplay.registrableDomain(of: $0.url.host() ?? "") == domain }) else { return }
+
+        favorites.append(Favorite(id: UUID(), url: url, title: title))
+        persistFavorites()
+
+        // Favoriting converts the tab — it disappears from the list as the
+        // favorite appears, not a duplicate. Discovery runs first so closing
+        // (and tearing down the webview) can't race the JS evaluation.
+        discoverAndCacheFavicon(for: url, sourceTab: sourceTab) { [weak self] in
+            if let sourceTab { self?.closeTab(sourceTab) }
+        }
+    }
+
+    func removeFavorite(_ favorite: Favorite) {
+        favorites.removeAll { $0.id == favorite.id }
+        persistFavorites()
+    }
+
+    /// Favorites act like a Dock icon: focus the tab already anchored to that
+    /// domain in this workspace if there is one, otherwise open it fresh —
+    /// pinned, so outbound links open in Quick Look rather than replacing it.
+    func openFavorite(_ favorite: Favorite) {
+        let domain = HostDisplay.registrableDomain(of: favorite.url.host() ?? favorite.url.absoluteString)
+        if let existing = activeWorkspace.tabs.first(where: { $0.pinnedHomeDomain == domain }) {
+            selectedTabID = existing.id
+            return
+        }
+        let tab = BrowserTab(url: favorite.url, title: favorite.title) { [weak self] in
+            self?.persistSession()
+        }
+        activeWorkspace.tabs.append(tab)
+        materialize(tab)
+        tab.pin()
+        selectedTabID = tab.id
+        observations.recordTabEvent(kind: "tab_open", workspaceID: activeWorkspace.id.uuidString)
+    }
+
+    /// Persisted favicon fetch for Pinned/Favorited tabs: discover the page's
+    /// declared icon via JS against its live webview when possible (most
+    /// accurate), then hand off to FaviconStore's disk-cached fetch.
+    private func discoverAndCacheFavicon(for url: URL, sourceTab: BrowserTab?, then completion: @escaping () -> Void = {}) {
+        if let webView = sourceTab?.webView {
+            webView.evaluateJavaScript(FaviconStore.discoveryScript) { result, _ in
+                FaviconStore.shared.fetchAndCache(for: url, discoveredIconURLString: result as? String)
+                completion()
+            }
+        } else {
+            FaviconStore.shared.fetchAndCache(for: url)
+            completion()
+        }
     }
 
     // MARK: - Navigation input
@@ -473,7 +622,11 @@ final class TabStore {
         try? db.run("DELETE FROM tab_snapshot WHERE workspace_id = ?", [.text(workspace.id.uuidString)])
         for (index, tab) in workspace.tabs.enumerated() {
             try? db.run(
-                "INSERT INTO tab_snapshot (id, workspace_id, sort, url, title, scroll_y, is_selected) VALUES (?,?,?,?,?,?,?)",
+                """
+                INSERT INTO tab_snapshot
+                    (id, workspace_id, sort, url, title, scroll_y, is_selected, is_pinned, pinned_url)
+                VALUES (?,?,?,?,?,?,?,?,?)
+                """,
                 [
                     .text(tab.id.uuidString),
                     .text(workspace.id.uuidString),
@@ -482,6 +635,8 @@ final class TabStore {
                     .text(tab.title),
                     .real(tab.pendingScrollY),
                     .int(workspace.selectedTabID == tab.id ? 1 : 0),
+                    .int(tab.isPinned ? 1 : 0),
+                    tab.pinnedURL.map { .text($0.absoluteString) } ?? .null,
                 ]
             )
         }

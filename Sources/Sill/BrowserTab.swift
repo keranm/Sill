@@ -19,6 +19,11 @@ final class BrowserTab: Identifiable {
 
     /// Scroll position to restore after the next load finishes.
     var pendingScrollY: Double
+    /// Pinned Tabs (sticks around, never auto-archives): the anchor URL to
+    /// return to via "Reset Tab", and the home domain that keeps outbound
+    /// links from replacing it (they open in Quick Look instead).
+    private(set) var isPinned: Bool
+    private(set) var pinnedURL: URL?
     /// Set by the navigation delegate on TLS/cert failure; drives the interstitial.
     var certificateFailure: (host: String, reason: String)?
     /// Transition typing for observation: "typed" when the load came from our
@@ -36,13 +41,40 @@ final class BrowserTab: Identifiable {
         url: URL? = nil,
         title: String = "New Tab",
         scrollY: Double = 0,
+        isPinned: Bool = false,
+        pinnedURL: URL? = nil,
         onStateChange: @escaping () -> Void
     ) {
         self.id = id
         self.url = url
         self.title = title
         self.pendingScrollY = scrollY
+        self.isPinned = isPinned
+        self.pinnedURL = pinnedURL
         self.onStateChange = onStateChange
+    }
+
+    // MARK: Pin state
+
+    func pin() {
+        guard !isPinned, let url else { return }
+        isPinned = true
+        pinnedURL = url
+        onStateChange()
+    }
+
+    func unpin() {
+        guard isPinned else { return }
+        isPinned = false
+        pinnedURL = nil
+        onStateChange()
+    }
+
+    /// The home domain a pinned tab is anchored to — outbound links to a
+    /// different registrable domain open in Quick Look rather than replacing it.
+    var pinnedHomeDomain: String? {
+        guard isPinned, let host = pinnedURL?.host() else { return nil }
+        return HostDisplay.registrableDomain(of: host)
     }
 
     // MARK: Materialize / dehydrate
@@ -112,11 +144,7 @@ final class BrowserTab: Identifiable {
 
     /// No-network favicon stand-in (PRD §3.2 bans our own fetches; the D2a
     /// mocks use letter chips).
-    var glyphLetter: String {
-        guard let host = url?.host() else { return "•" }
-        let domain = HostDisplay.registrableDomain(of: host)
-        return domain.first.map { String($0).uppercased() } ?? "•"
-    }
+    var glyphLetter: String { Glyph.letter(for: url) }
 
     // MARK: WebView state mirroring
 

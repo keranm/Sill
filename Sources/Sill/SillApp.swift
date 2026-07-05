@@ -5,6 +5,7 @@ import Sparkle
 struct SillApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var store: TabStore
+    @Environment(\.openWindow) private var openWindow
 
     init() {
         SelfTest.runIfRequested()
@@ -51,8 +52,15 @@ struct SillApp: App {
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
 
+                Button("New Quick Look") {
+                    openWindow(value: QuickLookRequest())
+                }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+
                 Button("Close Tab") {
-                    if let tab = store.selectedTab {
+                    if store.glanceURL != nil {
+                        store.glanceURL = nil
+                    } else if let tab = store.selectedTab {
                         store.closeTab(tab)
                     }
                 }
@@ -139,14 +147,31 @@ struct SillApp: App {
                 .keyboardShortcut("c", modifiers: [.command, .shift])
                 .disabled(store.selectedTab?.url == nil)
             }
+
+            CommandMenu("Favorites") {
+                ForEach(Array(store.favorites.prefix(9).enumerated()), id: \.offset) { index, favorite in
+                    Button(favorite.title.isEmpty ? (favorite.url.host() ?? "Favorite") : favorite.title) {
+                        store.openFavorite(favorite)
+                    }
+                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                }
+            }
         }
         .windowStyle(.hiddenTitleBar)
+
+        WindowGroup(for: QuickLookRequest.self) { $request in
+            if let request {
+                QuickLookView(store: store, initialURLString: request.initialURLString)
+            }
+        }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 760, height: 620)
     }
 }
 
 /// Merges the title bar into the content so the traffic lights float directly
 /// over the rail/header (D2a v2's frameless look) instead of a separate bar.
-private struct WindowConfigurator: NSViewRepresentable {
+struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {

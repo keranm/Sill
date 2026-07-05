@@ -10,6 +10,7 @@ extension Notification.Name {
 struct RailView: View {
     @Bindable var store: TabStore
 
+    @Environment(\.openWindow) private var openWindow
     @State private var fieldText = ""
     @State private var switcherShown = false
     @State private var namingNew = false
@@ -25,6 +26,23 @@ struct RailView: View {
             goToField
                 .padding(.horizontal, 10)
                 .padding(.top, 10)
+
+            if !store.favorites.isEmpty {
+                favoritesGrid
+                    .padding(.horizontal, 10)
+                    .padding(.top, 12)
+            }
+
+            if !store.pinnedTabs.isEmpty {
+                pinnedTabList
+                    .padding(.horizontal, 10)
+                    .padding(.top, 12)
+
+                Divider()
+                    .overlay(Tokens.hairline)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 10)
+            }
 
             Text("TABS")
                 .font(Tokens.font(10, .medium))
@@ -47,6 +65,44 @@ struct RailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .newWorkspace)) { _ in
             namingNew = true
             switcherShown = true
+        }
+    }
+
+    // MARK: Favorites — "Pinned Tabs accessible in every Space" (owner-
+    // requested). 3 per row, up to Favorite.maxCount, icon-only.
+
+    private var favoritesGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
+            ForEach(store.favorites) { favorite in
+                let openTab = store.tabs.first { $0.pinnedHomeDomain == HostDisplay.registrableDomain(of: favorite.url.host() ?? "") }
+                let isSelected = openTab != nil && openTab?.id == store.selectedTabID
+
+                Button {
+                    store.openFavorite(favorite)
+                } label: {
+                    GlyphView(url: favorite.url, size: 30, cornerRadius: 7)
+                        .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(
+                            RoundedRectangle(cornerRadius: 9)
+                                .fill(isSelected ? Tokens.stage : .clear)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 9)
+                                .strokeBorder(isSelected ? Tokens.hairline : .clear, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(favorite.title.isEmpty ? (favorite.url.host() ?? "") : favorite.title)
+                .contextMenu {
+                    if let openTab, openTab.url != favorite.url {
+                        Button("Reset Tab") { store.resetPinnedTab(openTab) }
+                    }
+                    Button("Remove from Favorites", role: .destructive) {
+                        store.removeFavorite(favorite)
+                    }
+                }
+            }
         }
     }
 
@@ -110,16 +166,50 @@ struct RailView: View {
         )
     }
 
-    // MARK: Tabs
+    // MARK: Pinned tabs — stick around, never auto-archive (owner-requested,
+    // Arc-inspired). Their own section, no drag reorder yet.
 
-    private var tabList: some View {
-        List {
-            ForEach(store.tabs) { tab in
+    private var pinnedTabList: some View {
+        VStack(spacing: 1) {
+            ForEach(store.pinnedTabs) { tab in
                 TabRow(
                     tab: tab,
                     isSelected: tab.id == store.selectedTabID,
                     select: { store.selectedTabID = tab.id },
-                    close: { store.closeTab(tab) }
+                    close: {},
+                    peek: { openWindow(value: QuickLookRequest(initialURLString: tab.url?.absoluteString)) },
+                    pin: nil,
+                    unpin: { store.unpin(tab) },
+                    resetToPinned: tab.pinnedURL != nil && tab.url != tab.pinnedURL
+                        ? { store.resetPinnedTab(tab) }
+                        : nil,
+                    addFavorite: {
+                        guard let url = tab.url else { return }
+                        store.addFavorite(title: tab.title, url: url, sourceTab: tab)
+                    }
+                )
+            }
+        }
+    }
+
+    // MARK: Tabs
+
+    private var tabList: some View {
+        List {
+            ForEach(store.unpinnedTabs) { tab in
+                TabRow(
+                    tab: tab,
+                    isSelected: tab.id == store.selectedTabID,
+                    select: { store.selectedTabID = tab.id },
+                    close: { store.closeTab(tab) },
+                    peek: { openWindow(value: QuickLookRequest(initialURLString: tab.url?.absoluteString)) },
+                    pin: { store.pin(tab) },
+                    unpin: nil,
+                    resetToPinned: nil,
+                    addFavorite: {
+                        guard let url = tab.url else { return }
+                        store.addFavorite(title: tab.title, url: url, sourceTab: tab)
+                    }
                 )
                 .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
                 .listRowSeparator(.hidden)
@@ -344,6 +434,11 @@ private struct TabRow: View {
     let isSelected: Bool
     let select: () -> Void
     let close: () -> Void
+    let peek: () -> Void
+    let pin: (() -> Void)?
+    let unpin: (() -> Void)?
+    let resetToPinned: (() -> Void)?
+    let addFavorite: (() -> Void)?
 
     @State private var hovering = false
 
@@ -356,7 +451,7 @@ private struct TabRow: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 0)
-            if hovering {
+            if hovering, !tab.isPinned {
                 Button(action: close) {
                     Image(systemName: "xmark")
                         .font(.system(size: 7.5, weight: .bold))
@@ -379,32 +474,37 @@ private struct TabRow: View {
                 .strokeBorder(isSelected ? Tokens.hairline : .clear, lineWidth: 1)
         )
         .contentShape(Rectangle())
-        .onTapGesture(perform: select)
+        .onTapGesture {
+            if NSEvent.modifierFlags.contains([.command, .option]) {
+                peek()
+            } else {
+                select()
+            }
+        }
         .onHover { hovering = $0 }
+        .contextMenu {
+            if let pin {
+                Button("Pin Tab") { pin() }
+                    .disabled(tab.url == nil)
+            }
+            if let resetToPinned {
+                Button("Reset Tab") { resetToPinned() }
+            }
+            if let unpin {
+                Button("Unpin Tab") { unpin() }
+            }
+            if let addFavorite {
+                Button("Add to Favorites") { addFavorite() }
+                    .disabled(tab.url == nil)
+            }
+            if unpin == nil {
+                Button("Close Tab") { close() }
+            }
+        }
     }
 
     private var glyph: some View {
-        Text(tab.glyphLetter)
-            .font(Tokens.font(9.5, .semibold))
-            .foregroundStyle(glyphColor)
-            .frame(width: 15, height: 15)
-            .background(
-                RoundedRectangle(cornerRadius: 3.5)
-                    .fill(glyphColor.opacity(0.12))
-            )
-    }
-
-    /// Muted, stable per-domain hue — the mocks' letter chips, no favicon fetch.
-    private var glyphColor: Color {
-        let palette: [Color] = [
-            Color(hex: 0x267D7D), Color(hex: 0x7D6226), Color(hex: 0x5B4E8F),
-            Color(hex: 0x8F4E62), Color(hex: 0x4E6F8F), Color(hex: 0x5F7D3A),
-        ]
-        guard let host = tab.url?.host() else { return Tokens.inkFaint }
-        let domain = HostDisplay.registrableDomain(of: host)
-        var hash = 5381
-        for byte in domain.utf8 { hash = (hash &* 33) &+ Int(byte) }
-        return palette[abs(hash) % palette.count]
+        GlyphView(url: tab.url)
     }
 }
 

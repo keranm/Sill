@@ -23,8 +23,41 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
     ) -> WKWebView? {
         guard let store else { return nil }
         let opener = store.tab(for: webView)
+
+        // Sites often open outbound links (target="_blank", window.open —
+        // Gmail's "View Order" links, for instance) via this popup path
+        // rather than same-tab navigation, so Pinned Tabs' Glance redirect
+        // has to be checked here too, not just in decidePolicyFor below.
+        if let destination = glanceDestination(for: navigationAction.request.url, from: opener) {
+            store.glanceURL = destination
+            return nil
+        }
+
         let tab = store.newTab(configuration: configuration, select: true, openedFrom: opener)
         return tab.webView
+    }
+
+    /// Pinned Tabs stay anchored to their home domain: a link elsewhere opens
+    /// in Glance instead of replacing the pinned page or opening a plain new
+    /// tab. Resolves common link-wrapping redirectors first (Gmail rewrites
+    /// external links as `google.com/url?q=...` for click tracking, which
+    /// would otherwise still read as same-domain and slip through).
+    private func glanceDestination(for requestURL: URL?, from tab: BrowserTab?) -> URL? {
+        guard let tab, let requestURL, let homeDomain = tab.pinnedHomeDomain else { return nil }
+        let destination = Self.resolvingRedirectWrapper(requestURL)
+        guard let destinationHost = destination.host(),
+              HostDisplay.registrableDomain(of: destinationHost) != homeDomain else { return nil }
+        return destination
+    }
+
+    private static func resolvingRedirectWrapper(_ url: URL) -> URL {
+        guard let host = url.host(), host.hasSuffix("google.com"), url.path == "/url",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let target = components.queryItems?.first(where: { $0.name == "q" })?.value,
+              let targetURL = URL(string: target) else {
+            return url
+        }
+        return targetURL
     }
 
     func webViewDidClose(_ webView: WKWebView) {
@@ -51,6 +84,12 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
             case .backForward: "back_forward"
             case .reload: "reload"
             default: "other"
+            }
+            if navigationAction.navigationType == .linkActivated,
+               let destination = glanceDestination(for: navigationAction.request.url, from: tab) {
+                store?.glanceURL = destination
+                decisionHandler(.cancel)
+                return
             }
         }
         // Hand non-web schemes (mailto:, app links from OAuth redirects) to the OS.
@@ -104,6 +143,12 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
                 workspaceID: context.workspaceID,
                 openDomains: context.openDomains
             ))
+
+            // Real favicon for the rail glyph — in-memory only unless this
+            // tab is Pinned/Favorited (see FaviconStore).
+            webView.evaluateJavaScript(FaviconStore.discoveryScript) { result, _ in
+                FaviconStore.shared.requestEphemeral(for: url, discoveredIconURLString: result as? String)
+            }
         }
     }
 

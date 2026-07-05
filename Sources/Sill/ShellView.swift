@@ -35,6 +35,11 @@ struct ShellView: View {
                 ))
             }
 
+            if let glanceURL = store.glanceURL {
+                GlanceView(store: store, url: glanceURL)
+                    .animation(.easeOut(duration: 0.15), value: store.glanceURL)
+            }
+
             // First run: the D2f consent screen, before anything else.
             if store.observations.consent == .undecided {
                 ConsentView { granted in
