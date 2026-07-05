@@ -137,5 +137,28 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.10/sill.zip" length="2578836" type="application/octet-stream" sparkle:edSignature="E4MbPAeFuy1b+7asY35e0G9VKrURaqVyHOAtlT8eG9un9vxxLqPz3sIJtJuTzRYE/qX2FWnnlo4dofLKgj/UAg==" />
     </item>
+    <item>
+      <title>Version 0.1.11</title>
+      <pubDate>Sun, 05 Jul 2026 23:05:28 +0000</pubDate>
+      <sparkle:version>202607052304</sparkle:version>
+      <sparkle:shortVersionString>0.1.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+  <li><b>Drag to reorder</b>: pick up any tab in the sidebar and drop it wherever you want, in Tabs or in Pinned — a dashed outline shows exactly where it'll land.</li>
+  <li><b>Drag to pin, favorite, or unpin</b>: drag a tab onto Pinned to pin it, onto Favorites to favorite it, or drag a pinned tab back down into Tabs to unpin it. Unpinning or removing a favorite always lands the tab back in your regular Tabs list — it never closes on you.</li>
+  <li><b>Panel view</b>: drag a tab onto the page you're already looking at to split the window and browse both side by side. Drag the divider between them to resize — drop closer to 1/3 or 2/3 if you want an uneven split. Right-click the merged tab to separate them again.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  Two tabs, one window —<br>
+  neither has to leave the room.<br>
+  Room enough for both.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.1.10...v0.1.11">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.11/sill.zip" length="2647766" type="application/octet-stream" sparkle:edSignature="gTNZrGDVr+iN/FbKTt0f5ZlWEnhUAiDvIZTP9RDTP279YyiOp5UAvl7OB2HyBCLAQdQai6oU6ZCBONuuwioaCA==" />
+    </item>
   </channel>
 </rss>
