@@ -129,8 +129,11 @@
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[
 <ul>
-  <li><b>Fixed:</b> Pinned Tabs, Favorites, and favicons were treating a subdomain like <code>home.example.com</code> as the same site as <code>example.com</code> — showing the wrong favicon, and letting a pinned tab's anchor-to-its-site behavior misfire for self-hosted setups (Home Assistant and similar). Subdomains are now always treated as distinct sites, as they should be.</li>
+  <li><b>Fixed:</b> Pinned Tabs, Favorites, and favicons were treating a subdomain like <code>home.example.com</code> as the exact same site as <code>example.com</code> — so a self-hosted setup (Home Assistant and similar) could show the wrong favicon, and a pinned tab could fail to notice it was being sent somewhere else entirely. Subdomains are now always treated as their own distinct site, everywhere this matters.</li>
 </ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  Why did the subdomain refuse therapy? It didn't think it had a separate identity.
+</p>
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.10/sill.zip" length="2578836" type="application/octet-stream" sparkle:edSignature="E4MbPAeFuy1b+7asY35e0G9VKrURaqVyHOAtlT8eG9un9vxxLqPz3sIJtJuTzRYE/qX2FWnnlo4dofLKgj/UAg==" />
     </item>
