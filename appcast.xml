@@ -95,5 +95,18 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.7/sill.zip" length="2576148" type="application/octet-stream" sparkle:edSignature="CniuWumhRijUuDeY1ZBDkOyRed8tM525zGJBZ2V2+JifNigo//WjCjreBNzUXrwuJqa+aITsCmblY9SzCsqJAw==" />
     </item>
+    <item>
+      <title>Version 0.1.8</title>
+      <pubDate>Sun, 05 Jul 2026 07:39:54 +0000</pubDate>
+      <sparkle:version>202607050739</sparkle:version>
+      <sparkle:shortVersionString>0.1.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+  <li><b>Fixed a crash on launch</b> affecting fresh installs (thank you to whoever hit this and reported it!). It never showed up in testing because of an accidental fallback specific to the machine each release was built on — every other machine hit the crash immediately on open. Should be solid now on any Mac.</li>
+</ul>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.8/sill.zip" length="2576290" type="application/octet-stream" sparkle:edSignature="yOl2cGI2hT/AIS2NZzzd/N2Cxnvp2kwVp02yWBxvD6zv37E7SHv/vgvytKFZvWPDqdHoNWtxf8T6Y6X5XA9mBA==" />
+    </item>
   </channel>
 </rss>
