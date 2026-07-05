@@ -49,7 +49,8 @@ struct HeaderView: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.top, 12)
+        .padding(.bottom, 7)
         .animation(.easeOut(duration: 0.15), value: showCopiedConfirmation)
         .onReceive(NotificationCenter.default.publisher(for: .urlCopied)) { _ in
             showCopiedConfirmation = true

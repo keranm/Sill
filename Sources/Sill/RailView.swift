@@ -21,7 +21,7 @@ struct RailView: View {
         VStack(alignment: .leading, spacing: 0) {
             workspaceHeader
                 .padding(.horizontal, 10)
-                .padding(.top, 8)
+                .padding(.top, 35)
 
             goToField
                 .padding(.horizontal, 10)

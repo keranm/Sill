@@ -26,6 +26,7 @@ struct ShellView: View {
                 }
             }
             .background(Tokens.canvas)
+            .ignoresSafeArea(.container, edges: .top)
 
             if let mode = paletteMode {
                 PaletteOverlay(store: store, mode: mode, isPresented: Binding(

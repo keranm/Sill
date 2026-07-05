@@ -19,6 +19,7 @@ struct SillApp: App {
         WindowGroup("Sill") {
             ShellView(store: store)
                 .frame(minWidth: 980, minHeight: 640)
+                .background(WindowConfigurator())
                 .onAppear {
                     appDelegate.store = store
                     BenchmarkRunner.startIfRequested(store: store)
@@ -139,7 +140,25 @@ struct SillApp: App {
                 .disabled(store.selectedTab?.url == nil)
             }
         }
+        .windowStyle(.hiddenTitleBar)
     }
+}
+
+/// Merges the title bar into the content so the traffic lights float directly
+/// over the rail/header (D2a v2's frameless look) instead of a separate bar.
+private struct WindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.styleMask.insert(.fullSizeContentView)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
 /// Explicit user action only, per PRD §4.9: no URLs, titles, or individual
