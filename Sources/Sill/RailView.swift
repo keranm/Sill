@@ -109,28 +109,43 @@ struct RailView: View {
     // MARK: Workspace switcher (D2a: one action to change context)
 
     private var workspaceHeader: some View {
-        Button {
-            switcherShown.toggle()
-        } label: {
-            HStack(spacing: 7) {
-                Circle()
-                    .fill(Tokens.accent)
-                    .frame(width: 6, height: 6)
-                Text(store.railTitle)
-                    .font(Tokens.font(13, .semibold))
-                    .foregroundStyle(Tokens.ink)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(Tokens.inkGhost)
-                Spacer()
+        HStack(spacing: 2) {
+            Button {
+                switcherShown.toggle()
+            } label: {
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(Tokens.accent)
+                        .frame(width: 6, height: 6)
+                    Text(store.railTitle)
+                        .font(Tokens.font(13, .semibold))
+                        .foregroundStyle(Tokens.ink)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(Tokens.inkGhost)
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $switcherShown, arrowEdge: .bottom) {
-            WorkspaceSwitcher(store: store, isPresented: $switcherShown, namingNew: $namingNew)
+            .buttonStyle(.plain)
+            .popover(isPresented: $switcherShown, arrowEdge: .bottom) {
+                WorkspaceSwitcher(store: store, isPresented: $switcherShown, namingNew: $namingNew)
+            }
+
+            Button {
+                namingNew = true
+                switcherShown = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Tokens.inkGhost)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("New workspace…")
         }
     }
 
