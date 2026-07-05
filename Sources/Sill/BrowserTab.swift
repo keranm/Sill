@@ -24,6 +24,14 @@ final class BrowserTab: Identifiable {
     /// links from replacing it (they open in Quick Look instead).
     private(set) var isPinned: Bool
     private(set) var pinnedURL: URL?
+    /// Panel view (owner's "Panel view", Arc's Split View): pairs this tab
+    /// with another to share the stage, side by side. Symmetric — both tabs
+    /// in a pair point at each other; `panelIsLeft` breaks the tie on which
+    /// renders left (and owns `panelSplitRatio`, the divider position).
+    /// `nil` partner means not paneled.
+    var panelPartnerID: BrowserTab.ID?
+    var panelIsLeft: Bool
+    var panelSplitRatio: CGFloat
     /// Set by the navigation delegate on TLS/cert failure; drives the interstitial.
     var certificateFailure: (host: String, reason: String)?
     /// Transition typing for observation: "typed" when the load came from our
@@ -43,6 +51,9 @@ final class BrowserTab: Identifiable {
         scrollY: Double = 0,
         isPinned: Bool = false,
         pinnedURL: URL? = nil,
+        panelPartnerID: BrowserTab.ID? = nil,
+        panelIsLeft: Bool = false,
+        panelSplitRatio: CGFloat = 0.5,
         onStateChange: @escaping () -> Void
     ) {
         self.id = id
@@ -51,6 +62,9 @@ final class BrowserTab: Identifiable {
         self.pendingScrollY = scrollY
         self.isPinned = isPinned
         self.pinnedURL = pinnedURL
+        self.panelPartnerID = panelPartnerID
+        self.panelIsLeft = panelIsLeft
+        self.panelSplitRatio = panelSplitRatio
         self.onStateChange = onStateChange
     }
 

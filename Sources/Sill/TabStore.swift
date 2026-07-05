@@ -2,6 +2,13 @@ import AppKit
 import WebKit
 import Observation
 
+/// Which rail list a tab belongs in — the drag-and-drop target for
+/// reordering and for moving a tab between Pinned and Tabs.
+enum RailSection {
+    case pinned
+    case unpinned
+}
+
 /// Owns workspaces and their tabs, the shared WebKit configuration, hibernation,
 /// and SQLite persistence.
 ///
@@ -26,6 +33,11 @@ final class TabStore {
     /// the overlay in ShellView; reachable here (not view-local @State) so
     /// the global Cmd-W command can dismiss it instead of closing a tab.
     var glanceURL: URL?
+
+    /// Cross-view drag-and-drop UI state (rail reordering, and the stage's
+    /// Panel-view drop target both need it) — lives here, not as view-local
+    /// @State, since RailView and ShellView are siblings.
+    let dragState = TabReorderState()
 
     @ObservationIgnored private var db: Database!
     @ObservationIgnored private lazy var webKitDelegate = WebKitDelegate(store: self)
@@ -138,6 +150,9 @@ final class TabStore {
     private func migrateColumns() {
         try? db.execute("ALTER TABLE tab_snapshot ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
         try? db.execute("ALTER TABLE tab_snapshot ADD COLUMN pinned_url TEXT")
+        try? db.execute("ALTER TABLE tab_snapshot ADD COLUMN panel_partner_id TEXT")
+        try? db.execute("ALTER TABLE tab_snapshot ADD COLUMN panel_is_left INTEGER NOT NULL DEFAULT 0")
+        try? db.execute("ALTER TABLE tab_snapshot ADD COLUMN panel_split_ratio REAL NOT NULL DEFAULT 0.5")
     }
 
     private func loadWorkspaces() throws {
@@ -151,7 +166,11 @@ final class TabStore {
                 isEverythingElse: row.int("is_everything_else") == 1
             )
             let tabRows = try db.query(
-                "SELECT id, url, title, scroll_y, is_selected, is_pinned, pinned_url FROM tab_snapshot WHERE workspace_id = ? ORDER BY sort",
+                """
+                SELECT id, url, title, scroll_y, is_selected, is_pinned, pinned_url,
+                    panel_partner_id, panel_is_left, panel_split_ratio
+                FROM tab_snapshot WHERE workspace_id = ? ORDER BY sort
+                """,
                 [.text(idText)]
             )
             for tabRow in tabRows {
@@ -163,6 +182,9 @@ final class TabStore {
                     scrollY: tabRow.real("scroll_y") ?? 0,
                     isPinned: tabRow.int("is_pinned") == 1,
                     pinnedURL: tabRow.text("pinned_url").flatMap(URL.init(string:)),
+                    panelPartnerID: tabRow.text("panel_partner_id").flatMap(UUID.init(uuidString:)),
+                    panelIsLeft: tabRow.int("panel_is_left") == 1,
+                    panelSplitRatio: tabRow.real("panel_split_ratio") ?? 0.5,
                     onStateChange: { [weak self] in self?.persistSession() }
                 )
                 workspace.tabs.append(tab)
@@ -258,27 +280,110 @@ final class TabStore {
     /// Pinned Tabs (PRD-adjacent, owner-requested): tabs you want to stick
     /// around, shown above the regular list, never auto-archived. Excludes
     /// tabs opened from a Favorite — the favorite chip *is* that tab, so it
-    /// isn't also listed here (no duplicate row).
-    var pinnedTabs: [BrowserTab] { activeWorkspace.tabs.filter { $0.isPinned && !isFavoriteBacked($0) } }
-    var unpinnedTabs: [BrowserTab] { activeWorkspace.tabs.filter { !$0.isPinned } }
+    /// isn't also listed here (no duplicate row) — and the follower side of
+    /// a Panel, which the leader's merged row speaks for.
+    var pinnedTabs: [BrowserTab] { activeWorkspace.tabs.filter { $0.isPinned && !isHiddenFromRail($0) } }
+    var unpinnedTabs: [BrowserTab] { activeWorkspace.tabs.filter { !$0.isPinned && !isHiddenFromRail($0) } }
+
+    /// A tab is hidden from its section's rail row when something else
+    /// already speaks for it — a Favorite chip, or a Panel's merged row.
+    /// One shared predicate so `pinnedTabs`, `unpinnedTabs`, and `placeTab`'s
+    /// storage reconstruction can never disagree on what counts as hidden.
+    private func isHiddenFromRail(_ tab: BrowserTab) -> Bool {
+        isFavoriteBacked(tab) || isPanelFollower(tab)
+    }
 
     private func isFavoriteBacked(_ tab: BrowserTab) -> Bool {
         guard let domain = tab.pinnedHomeDomain else { return false }
         return favorites.contains { DisplayNames.observationDomain(for: $0.url.host() ?? "") == domain }
     }
 
+    private func isPanelFollower(_ tab: BrowserTab) -> Bool {
+        tab.panelPartnerID != nil && !tab.panelIsLeft
+    }
+
+    /// The workspace holding `tab` — shared by every close/panel operation
+    /// that needs to find it, so there's exactly one place that knows how.
+    private func workspace(containing tab: BrowserTab) -> Workspace? {
+        workspaces.first { $0.tabs.contains { $0.id == tab.id } }
+    }
+
+    // MARK: - Panel view (owner's "Panel view", Arc's Split View)
+
+    func panelPartner(of tab: BrowserTab, in workspace: Workspace) -> BrowserTab? {
+        guard let partnerID = tab.panelPartnerID else { return nil }
+        return workspace.tabs.first { $0.id == partnerID }
+    }
+
+    func panelPartner(of tab: BrowserTab) -> BrowserTab? {
+        panelPartner(of: tab, in: activeWorkspace)
+    }
+
+    /// Pairs the current page with `dragged` — a 50/50 split, `current`
+    /// `draggedOnLeft` matches wherever the drop actually landed — dropping
+    /// on the left half of the stage puts the dragged-in tab on the left and
+    /// pushes the current page right, and vice versa, rather than always
+    /// defaulting to one fixed side. Declines if either side is already
+    /// paneled (no 3-way splits yet) or they're the same tab.
+    func formPanel(with dragged: BrowserTab, draggedOnLeft: Bool) {
+        guard let current = selectedTab,
+              current.id != dragged.id,
+              current.panelPartnerID == nil,
+              dragged.panelPartnerID == nil else { return }
+        current.panelPartnerID = dragged.id
+        dragged.panelPartnerID = current.id
+        current.panelIsLeft = !draggedOnLeft
+        dragged.panelIsLeft = draggedOnLeft
+        current.panelSplitRatio = 0.5
+        dragged.panelSplitRatio = 0.5
+        materialize(dragged)
+        persistSession()
+    }
+
+    /// "Separate Panels": un-pairs both sides back into two ordinary tabs,
+    /// each reappearing in its own rail row wherever its pin state puts it.
+    func separatePanel(_ tab: BrowserTab) {
+        guard let workspace = workspace(containing: tab),
+              let partner = panelPartner(of: tab, in: workspace) else { return }
+        tab.panelPartnerID = nil
+        tab.panelIsLeft = false
+        partner.panelPartnerID = nil
+        partner.panelIsLeft = false
+        persistSession()
+    }
+
+    /// Reads never observably land on a hidden Panel follower — whichever
+    /// side becomes the follower (via `formPanel`'s asymmetric drop side, or
+    /// any future path that sets this to a tab that later becomes a
+    /// follower) transparently resolves to its leader, since the follower
+    /// has no rail row for an `isSelected`/highlight check to match against.
     var selectedTabID: BrowserTab.ID? {
-        get { activeWorkspace.selectedTabID }
+        get {
+            guard let raw = activeWorkspace.selectedTabID,
+                  let tab = activeWorkspace.tabs.first(where: { $0.id == raw }) else { return activeWorkspace.selectedTabID }
+            if isPanelFollower(tab), let partner = panelPartner(of: tab, in: activeWorkspace) {
+                return partner.id
+            }
+            return raw
+        }
         set {
             activeWorkspace.selectedTabID = newValue
-            if let tab = activeWorkspace.selectedTab, !tab.isMaterialized {
-                materialize(tab)
+            if let tab = activeWorkspace.selectedTab {
+                if !tab.isMaterialized {
+                    materialize(tab)
+                }
+                if let partner = panelPartner(of: tab), !partner.isMaterialized {
+                    materialize(partner)
+                }
             }
             persistSession()
         }
     }
 
-    var selectedTab: BrowserTab? { activeWorkspace.selectedTab }
+    var selectedTab: BrowserTab? {
+        guard let id = selectedTabID else { return nil }
+        return activeWorkspace.tabs.first { $0.id == id }
+    }
 
     // MARK: - WebView construction
 
@@ -315,6 +420,9 @@ final class TabStore {
         }
         if let tab = workspace.selectedTab {
             materialize(tab)
+            if let partner = panelPartner(of: tab, in: workspace) {
+                materialize(partner)
+            }
         }
     }
 
@@ -437,8 +545,26 @@ final class TabStore {
         return tab
     }
 
+    /// Closing a paneled tab closes its partner too — a Panel is one unit to
+    /// close, even though every call site (Cmd-W, the merged row's single X)
+    /// just closes "the tab" without needing to know panels exist. Un-pairs
+    /// in memory only (no persist) rather than routing through
+    /// `separatePanel` — both tabs are about to be removed anyway, so
+    /// there's no reason to write the briefly-unpaired state to disk first.
     func closeTab(_ tab: BrowserTab) {
-        guard let workspace = workspaces.first(where: { $0.tabs.contains { $0.id == tab.id } }),
+        if let workspace = workspace(containing: tab),
+           let partner = panelPartner(of: tab, in: workspace) {
+            tab.panelPartnerID = nil
+            tab.panelIsLeft = false
+            partner.panelPartnerID = nil
+            partner.panelIsLeft = false
+            closeTabIndividually(partner)
+        }
+        closeTabIndividually(tab)
+    }
+
+    private func closeTabIndividually(_ tab: BrowserTab) {
+        guard let workspace = workspace(containing: tab),
               let index = workspace.tabs.firstIndex(where: { $0.id == tab.id }) else { return }
         workspace.tabs.remove(at: index)
         Task { await tab.dehydrate() }
@@ -475,15 +601,44 @@ final class TabStore {
         return nil
     }
 
-    /// Reorders the unpinned list only (the rail renders pinned tabs in their
-    /// own, separately-ordered section) — pinned tabs keep their existing
-    /// slots in the underlying array; source/destination are indices into
-    /// `unpinnedTabs`, not the full array.
-    func moveTabs(from source: IndexSet, to destination: Int) {
-        var reordered = unpinnedTabs
-        reordered.move(fromOffsets: source, toOffset: destination)
-        var next = reordered.makeIterator()
-        activeWorkspace.tabs = activeWorkspace.tabs.map { $0.isPinned ? $0 : next.next()! }
+    /// Places `tab` at `index` within `section`'s visible order (drag-to-
+    /// reorder within a section, or drag between Pinned and Tabs — pinning or
+    /// unpinning as needed to match). Favorite-backed pinned tabs and Panel
+    /// followers are both hidden from the rail lists (something else stands
+    /// in for them — the favorite chip, or the leader's merged row), so
+    /// their relative position is inconsequential; they're preserved
+    /// untouched and only the two *visible* orders are reconstructed around
+    /// the moved tab. (`tab` here is never itself a follower or favorite-
+    /// backed — neither has a rail row to drag from.)
+    /// A blank tab (no URL yet) can't actually be pinned — `BrowserTab.pin()`
+    /// silently no-ops without one, same as the disabled "Pin Tab" menu item
+    /// — so dropping one onto Pinned must decline the whole move rather than
+    /// still splicing it into the pinned position while it's really still
+    /// unpinned (it would then reappear, misplaced, next time `unpinnedTabs`
+    /// is read, since that reads the real `isPinned` flag, not array position).
+    func placeTab(_ tab: BrowserTab, inSection section: RailSection, atIndex index: Int) {
+        if section == .pinned, !tab.isPinned {
+            guard tab.url != nil else { return }
+            tab.pin()
+            if let url = tab.url {
+                discoverAndCacheFavicon(for: url, sourceTab: tab)
+            }
+        } else if section == .unpinned, tab.isPinned {
+            tab.unpin()
+        }
+
+        let hidden = activeWorkspace.tabs.filter { isHiddenFromRail($0) && $0.id != tab.id }
+        var pinnedVisible = pinnedTabs.filter { $0.id != tab.id }
+        var unpinnedVisible = unpinnedTabs.filter { $0.id != tab.id }
+
+        switch section {
+        case .pinned:
+            pinnedVisible.insert(tab, at: min(max(index, 0), pinnedVisible.count))
+        case .unpinned:
+            unpinnedVisible.insert(tab, at: min(max(index, 0), unpinnedVisible.count))
+        }
+
+        activeWorkspace.tabs = hidden + pinnedVisible + unpinnedVisible
         persistSession()
     }
 
@@ -534,9 +689,24 @@ final class TabStore {
         }
     }
 
+    /// Removing a favorite fully demotes any tab it was backing (still
+    /// pinned, just hidden from the rail while the chip stood in for it)
+    /// back to an ordinary Tabs-stack tab — it must not stay stranded as an
+    /// invisible pinned tab, and it must not close. Favorites are reachable
+    /// from every workspace, so the backing tab can live in a dormant one —
+    /// searches all of them and persists whichever workspace actually
+    /// changed, not just `activeWorkspace` (which `unpin(_:)` assumes).
     func removeFavorite(_ favorite: Favorite) {
         favorites.removeAll { $0.id == favorite.id }
         persistFavorites()
+        let domain = DisplayNames.observationDomain(for: favorite.url.host() ?? favorite.url.absoluteString)
+        for workspace in workspaces {
+            if let backingTab = workspace.tabs.first(where: { $0.pinnedHomeDomain == domain }) {
+                backingTab.unpin()
+                persistTabs(of: workspace)
+                break
+            }
+        }
     }
 
     /// Favorites act like a Dock icon: focus the tab already anchored to that
@@ -624,8 +794,9 @@ final class TabStore {
             try? db.run(
                 """
                 INSERT INTO tab_snapshot
-                    (id, workspace_id, sort, url, title, scroll_y, is_selected, is_pinned, pinned_url)
-                VALUES (?,?,?,?,?,?,?,?,?)
+                    (id, workspace_id, sort, url, title, scroll_y, is_selected, is_pinned, pinned_url,
+                     panel_partner_id, panel_is_left, panel_split_ratio)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 [
                     .text(tab.id.uuidString),
@@ -637,6 +808,9 @@ final class TabStore {
                     .int(workspace.selectedTabID == tab.id ? 1 : 0),
                     .int(tab.isPinned ? 1 : 0),
                     tab.pinnedURL.map { .text($0.absoluteString) } ?? .null,
+                    tab.panelPartnerID.map { .text($0.uuidString) } ?? .null,
+                    .int(tab.panelIsLeft ? 1 : 0),
+                    .real(tab.panelSplitRatio),
                 ]
             )
         }

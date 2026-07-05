@@ -12,6 +12,7 @@ struct ShellView: View {
     @State private var paletteMode: PaletteOverlay.Mode?
     @State private var importPresented = false
     @State private var learningShown = false
+    @State private var panelDropTargeted = false
 
     var body: some View {
         ZStack {
@@ -73,7 +74,11 @@ struct ShellView: View {
             if learningShown {
                 LearningPageView(store: store) { learningShown = false }
             } else if let tab = store.selectedTab {
-                if case .certificateFailure(let host, let reason) = tab.securityState {
+                if let partner = store.panelPartner(of: tab) {
+                    PanelSplitView(store: store, leftTab: tab.panelIsLeft ? tab : partner, rightTab: tab.panelIsLeft ? partner : tab)
+                        .id(tab.panelIsLeft ? tab.id : partner.id)
+                        .transition(.opacity)
+                } else if case .certificateFailure(let host, let reason) = tab.securityState {
                     InterstitialView(host: host, reason: reason) {
                         tab.certificateFailure = nil
                         if tab.canGoBack {
@@ -90,13 +95,39 @@ struct ShellView: View {
                 Tokens.stage
             }
         }
+        .animation(.easeOut(duration: 0.22), value: store.selectedTab?.panelPartnerID)
         .overlay(restoreOverlay)
         .overlay(payoffOverlay)
+        .overlay(panelDropTarget)
         .clipShape(RoundedRectangle(cornerRadius: Tokens.radiusStage))
         .overlay(
             RoundedRectangle(cornerRadius: Tokens.radiusStage)
                 .strokeBorder(Tokens.hairline, lineWidth: 1)
         )
+    }
+
+    /// Panel view: drop a dragged rail tab onto the current page to pair
+    /// them, 50/50. Only present in the hierarchy while a rail drag is
+    /// actually in flight, so it never intercepts normal page interaction
+    /// (scrolling, clicking links) the rest of the time — same trick as the
+    /// mouse-up safety net in RailView.
+    @ViewBuilder
+    private var panelDropTarget: some View {
+        if let draggingID = store.dragState.draggingTabID, let tab = store.selectedTab, tab.panelPartnerID == nil, draggingID != tab.id {
+            GeometryReader { geo in
+                RoundedRectangle(cornerRadius: Tokens.radiusStage)
+                    .fill(panelDropTargeted ? Tokens.accentWash : .clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Tokens.radiusStage)
+                            .strokeBorder(panelDropTargeted ? Tokens.accent.opacity(0.6) : .clear, lineWidth: 2)
+                    )
+                    .contentShape(Rectangle())
+                    .onDrop(
+                        of: [.plainText],
+                        delegate: PanelDropDelegate(stageWidth: geo.size.width, store: store, isTargeted: $panelDropTargeted)
+                    )
+            }
+        }
     }
 
     /// The restore transition (D2a): context preserved, never a lone spinner.

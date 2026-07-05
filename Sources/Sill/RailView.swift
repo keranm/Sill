@@ -17,6 +17,10 @@ struct RailView: View {
     @State private var downloadsShown = false
     @FocusState private var fieldFocused: Bool
 
+    @State private var favoritesTargeted = false
+    @State private var measuredRowHeight: CGFloat = 28
+    @State private var mouseUpMonitor: Any?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             workspaceHeader
@@ -27,13 +31,17 @@ struct RailView: View {
                 .padding(.horizontal, 10)
                 .padding(.top, 10)
 
-            if !store.favorites.isEmpty {
+            // Shown while empty during a drag too, so there's a target to
+            // drop the very first pinned/favorite tab onto.
+            let isDraggingTab = store.dragState.draggingTabID != nil
+
+            if !store.favorites.isEmpty || isDraggingTab {
                 favoritesGrid
                     .padding(.horizontal, 10)
                     .padding(.top, 12)
             }
 
-            if !store.pinnedTabs.isEmpty {
+            if !store.pinnedTabs.isEmpty || isDraggingTab {
                 pinnedTabList
                     .padding(.horizontal, 10)
                     .padding(.top, 12)
@@ -65,6 +73,27 @@ struct RailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .newWorkspace)) { _ in
             namingNew = true
             switcherShown = true
+        }
+        // Safety net: a drag can end by releasing the mouse somewhere no
+        // onDrop ever fires (blank canvas, outside the rail, dropped
+        // rejected elsewhere) — without this, the drag state could stay
+        // stuck and leave an empty Pinned/Favorites section or a dimmed
+        // row on screen indefinitely. Any mouse-up is a safe place to
+        // clear it: a real drop already cleared it itself by the time
+        // this fires, so this is a no-op in the common case.
+        .onAppear {
+            if let mouseUpMonitor {
+                NSEvent.removeMonitor(mouseUpMonitor)
+            }
+            mouseUpMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { event in
+                store.dragState.clear()
+                return event
+            }
+        }
+        .onDisappear {
+            if let mouseUpMonitor {
+                NSEvent.removeMonitor(mouseUpMonitor)
+            }
         }
     }
 
@@ -103,6 +132,18 @@ struct RailView: View {
                     }
                 }
             }
+
+            if favoritesTargeted {
+                FavoriteDropIndicatorCell()
+            }
+        }
+        .onDrop(of: [.plainText], isTargeted: $favoritesTargeted) { providers in
+            TabDrag.resolve(providers, in: store) { tab in
+                defer { store.dragState.clear() }
+                guard let url = tab.url else { return }
+                store.addFavorite(title: tab.title, url: url, sourceTab: tab)
+            }
+            return true
         }
     }
 
@@ -182,82 +223,167 @@ struct RailView: View {
     }
 
     // MARK: Pinned tabs — stick around, never auto-archive (owner-requested,
-    // Arc-inspired). Their own section, no drag reorder yet.
+    // Arc-inspired). Reorderable like Tabs; dragging one down into Tabs
+    // unpins it, dragging it up into Favorites favorites it.
 
     private var pinnedTabList: some View {
-        VStack(spacing: 1) {
-            ForEach(store.pinnedTabs) { tab in
-                TabRow(
-                    tab: tab,
-                    isSelected: tab.id == store.selectedTabID,
-                    select: { store.selectedTabID = tab.id },
-                    close: {},
-                    peek: { openWindow(value: QuickLookRequest(initialURLString: tab.url?.absoluteString)) },
-                    pin: nil,
-                    unpin: { store.unpin(tab) },
-                    resetToPinned: tab.pinnedURL != nil && tab.url != tab.pinnedURL
-                        ? { store.resetPinnedTab(tab) }
-                        : nil,
-                    addFavorite: {
-                        guard let url = tab.url else { return }
-                        store.addFavorite(title: tab.title, url: url, sourceTab: tab)
+        let pinned = store.pinnedTabs
+        return VStack(spacing: 1) {
+            ForEach(Array(pinned.enumerated()), id: \.element.id) { index, tab in
+                if store.dragState.targetSection == .pinned && store.dragState.insertionIndex == index {
+                    TabDropIndicator(height: measuredRowHeight)
+                }
+
+                if let partner = store.panelPartner(of: tab) {
+                    PanelTabRow(
+                        leftTab: tab,
+                        rightTab: partner,
+                        isSelected: tab.id == store.selectedTabID,
+                        select: { store.selectedTabID = tab.id },
+                        close: { store.closeTab(tab) },
+                        separate: { store.separatePanel(tab) }
+                    )
+                } else {
+                    TabRow(
+                        tab: tab,
+                        isSelected: tab.id == store.selectedTabID,
+                        select: { store.selectedTabID = tab.id },
+                        close: {},
+                        peek: { openWindow(value: QuickLookRequest(initialURLString: tab.url?.absoluteString)) },
+                        pin: nil,
+                        unpin: { store.unpin(tab) },
+                        resetToPinned: tab.pinnedURL != nil && tab.url != tab.pinnedURL
+                            ? { store.resetPinnedTab(tab) }
+                            : nil,
+                        addFavorite: {
+                            guard let url = tab.url else { return }
+                            store.addFavorite(title: tab.title, url: url, sourceTab: tab)
+                        }
+                    )
+                    .opacity(store.dragState.draggingTabID == tab.id ? 0.4 : 1)
+                    // Also measures row height here, not just in the Tabs
+                    // list — a workspace where every tab is pinned would
+                    // otherwise never update `measuredRowHeight` past its
+                    // 28pt default, throwing off the Pinned reorder math.
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear.onAppear { measuredRowHeight = proxy.size.height }
+                        }
+                    )
+                    .onDrag {
+                        store.dragState.beginDrag(tab.id)
+                        return TabDrag.provider(for: tab)
                     }
-                )
+                }
+            }
+
+            if store.dragState.targetSection == .pinned && store.dragState.insertionIndex == pinned.count {
+                TabDropIndicator(height: measuredRowHeight)
             }
         }
+        .contentShape(Rectangle())
+        .onDrop(
+            of: [.plainText],
+            delegate: TabReorderDropDelegate(
+                section: .pinned,
+                rowSlotHeight: measuredRowHeight + 1,
+                tabCount: pinned.count,
+                store: store,
+                state: store.dragState
+            )
+        )
     }
 
-    // MARK: Tabs
+    // MARK: Tabs — drag a row to reorder; the dashed line tracks where it'd
+    // land. One drop delegate on the whole list (not one per row) computes
+    // the target purely from the drop point's Y position divided by a
+    // measured row height — a row's own frame is never consulted, so a row
+    // shifting because the indicator appeared above it can't feed back into
+    // where the indicator is computed to be (that feedback loop is what
+    // caused the flicker: per-row delegates reading each row's post-reflow
+    // frame).
 
     private var tabList: some View {
-        List {
-            ForEach(store.unpinnedTabs) { tab in
-                TabRow(
-                    tab: tab,
-                    isSelected: tab.id == store.selectedTabID,
-                    select: { store.selectedTabID = tab.id },
-                    close: { store.closeTab(tab) },
-                    peek: { openWindow(value: QuickLookRequest(initialURLString: tab.url?.absoluteString)) },
-                    pin: { store.pin(tab) },
-                    unpin: nil,
-                    resetToPinned: nil,
-                    addFavorite: {
-                        guard let url = tab.url else { return }
-                        store.addFavorite(title: tab.title, url: url, sourceTab: tab)
+        let unpinned = store.unpinnedTabs
+        return ScrollView {
+            LazyVStack(spacing: 1) {
+                ForEach(Array(unpinned.enumerated()), id: \.element.id) { index, tab in
+                    if store.dragState.targetSection == .unpinned && store.dragState.insertionIndex == index {
+                        TabDropIndicator(height: measuredRowHeight)
                     }
-                )
-                .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            }
-            .onMove { source, destination in
-                store.moveTabs(from: source, to: destination)
-            }
 
-            Button {
-                store.newTab()
-                NotificationCenter.default.post(name: .focusHomeField, object: nil)
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 9, weight: .medium))
-                    Text("New tab")
-                        .font(Tokens.font(12.5))
-                    Spacer()
+                    if let partner = store.panelPartner(of: tab) {
+                        PanelTabRow(
+                            leftTab: tab,
+                            rightTab: partner,
+                            isSelected: tab.id == store.selectedTabID,
+                            select: { store.selectedTabID = tab.id },
+                            close: { store.closeTab(tab) },
+                            separate: { store.separatePanel(tab) }
+                        )
+                    } else {
+                        TabRow(
+                            tab: tab,
+                            isSelected: tab.id == store.selectedTabID,
+                            select: { store.selectedTabID = tab.id },
+                            close: { store.closeTab(tab) },
+                            peek: { openWindow(value: QuickLookRequest(initialURLString: tab.url?.absoluteString)) },
+                            pin: { store.pin(tab) },
+                            unpin: nil,
+                            resetToPinned: nil,
+                            addFavorite: {
+                                guard let url = tab.url else { return }
+                                store.addFavorite(title: tab.title, url: url, sourceTab: tab)
+                            }
+                        )
+                        .opacity(store.dragState.draggingTabID == tab.id ? 0.4 : 1)
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear.onAppear { measuredRowHeight = proxy.size.height }
+                            }
+                        )
+                        .onDrag {
+                            store.dragState.beginDrag(tab.id)
+                            return TabDrag.provider(for: tab)
+                        }
+                    }
                 }
-                .foregroundStyle(Tokens.inkGhost)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .contentShape(Rectangle())
+
+                if store.dragState.targetSection == .unpinned && store.dragState.insertionIndex == unpinned.count {
+                    TabDropIndicator(height: measuredRowHeight)
+                }
+
+                Button {
+                    store.newTab()
+                    NotificationCenter.default.post(name: .focusHomeField, object: nil)
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 9, weight: .medium))
+                        Text("New tab")
+                            .font(Tokens.font(12.5))
+                        Spacer()
+                    }
+                    .foregroundStyle(Tokens.inkGhost)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-            .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .padding(.horizontal, 6)
+            .contentShape(Rectangle())
+            .onDrop(
+                of: [.plainText],
+                delegate: TabReorderDropDelegate(
+                    section: .unpinned,
+                    rowSlotHeight: measuredRowHeight + 1,
+                    tabCount: unpinned.count,
+                    store: store,
+                    state: store.dragState
+                )
+            )
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .environment(\.defaultMinListRowHeight, 24)
         .id(store.activeWorkspaceID)
     }
 
@@ -439,6 +565,69 @@ private struct WorkspaceSwitcher: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Panel row (Panel view: two tabs sharing the stage, one merged row)
+
+/// Not draggable in v1 — a Panel is formed only by dropping a tab onto the
+/// stage, and undone only via "Separate Panels" here.
+private struct PanelTabRow: View {
+    let leftTab: BrowserTab
+    let rightTab: BrowserTab
+    let isSelected: Bool
+    let select: () -> Void
+    let close: () -> Void
+    let separate: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            side(leftTab)
+            Rectangle()
+                .fill(Tokens.hairline)
+                .frame(width: 1, height: 14)
+            side(rightTab)
+
+            if hovering {
+                Button(action: close) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 7.5, weight: .bold))
+                        .foregroundStyle(Tokens.inkGhost)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: Tokens.radiusControl)
+                .fill(isSelected ? Tokens.stage : (hovering ? Tokens.well : .clear))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Tokens.radiusControl)
+                .strokeBorder(isSelected ? Tokens.hairline : .clear, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { select() }
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button("Separate Panels") { separate() }
+            Button("Close Panel", role: .destructive) { close() }
+        }
+    }
+
+    private func side(_ tab: BrowserTab) -> some View {
+        HStack(spacing: 5) {
+            GlyphView(url: tab.url)
+            Text(tab.title)
+                .font(Tokens.font(12.5))
+                .foregroundStyle(tab.isMaterialized ? Tokens.ink : Tokens.inkFaint)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

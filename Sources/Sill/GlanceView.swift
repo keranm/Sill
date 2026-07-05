@@ -7,8 +7,6 @@ import WebKit
 /// link inside a Pinned/Favorited tab points outside its home domain.
 /// Expand promotes it into a real tab in the current workspace; otherwise
 /// close it (click outside, the X, or Cmd-W) and it's gone, no trace.
-///
-/// No Split View button yet: Sill has no split-view feature to drop into.
 struct GlanceView: View {
     @Bindable var store: TabStore
     let url: URL
@@ -62,7 +60,7 @@ struct GlanceView: View {
             }
             .buttonStyle(.plain)
             .disabled(!(tab?.canGoBack ?? false))
-            .arrowCursor()
+            .hoverCursor(.arrow)
 
             addressReadout
 
@@ -78,7 +76,7 @@ struct GlanceView: View {
             .buttonStyle(.plain)
             .keyboardShortcut("o", modifiers: .command)
             .help("Open in this workspace")
-            .arrowCursor()
+            .hoverCursor(.arrow)
 
             Button(action: dismiss) {
                 Image(systemName: "xmark")
@@ -88,7 +86,7 @@ struct GlanceView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .arrowCursor()
+            .hoverCursor(.arrow)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -124,15 +122,16 @@ struct GlanceView: View {
     }
 }
 
-private extension View {
-    /// Glance draws over the pinned tab's own WKWebView, which still owns
-    /// native AppKit cursor-rects for whatever's underneath (e.g. a text
-    /// field on the actual page at that screen position) — without this,
-    /// the stale I-beam/etc bleeds through the overlay's buttons.
-    func arrowCursor() -> some View {
+extension View {
+    /// Pushes `cursor` while hovering, pops on exit. Needed wherever a
+    /// SwiftUI overlay draws over a WKWebView, which still owns native
+    /// AppKit cursor-rects for whatever's underneath (e.g. a text field on
+    /// the actual page at that screen position) — without this, the native
+    /// view's own cursor (I-beam, etc.) bleeds through the overlay.
+    func hoverCursor(_ cursor: NSCursor) -> some View {
         onHover { inside in
             if inside {
-                NSCursor.arrow.push()
+                cursor.push()
             } else {
                 NSCursor.pop()
             }
