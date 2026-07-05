@@ -44,5 +44,18 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.4/sill.zip" length="2461208" type="application/octet-stream" sparkle:edSignature="HukvYlyCeqBOtFDR7iLn2TjtaFL/rvUR6UpCRetx7cF9TulLJbxRlvk0NsGowboscs9ruf1xEoATYiKLqe6bBw==" />
     </item>
+    <item>
+      <title>Version 0.1.5</title>
+      <pubDate>Sun, 05 Jul 2026 05:40:15 +0000</pubDate>
+      <sparkle:version>202607050539</sparkle:version>
+      <sparkle:shortVersionString>0.1.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+  <li><b>Frameless window</b> — the title bar is gone; traffic lights now float directly over the sidebar, right at the top edge of the window.</li>
+</ul>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.5/sill.zip" length="2465863" type="application/octet-stream" sparkle:edSignature="AI9V6gda1BLB3fmIj/EhIIikpeNiHsYbMNzMRDDyDlqaH2txFjYiRjWa7nisMOF8JXEakB6su1kzkRj5kLGHCw==" />
+    </item>
   </channel>
 </rss>
