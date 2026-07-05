@@ -57,5 +57,19 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.5/sill.zip" length="2465863" type="application/octet-stream" sparkle:edSignature="AI9V6gda1BLB3fmIj/EhIIikpeNiHsYbMNzMRDDyDlqaH2txFjYiRjWa7nisMOF8JXEakB6su1kzkRj5kLGHCw==" />
     </item>
+    <item>
+      <title>Version 0.1.6</title>
+      <pubDate>Sun, 05 Jul 2026 05:48:49 +0000</pubDate>
+      <sparkle:version>202607050548</sparkle:version>
+      <sparkle:shortVersionString>0.1.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+  <li><b>Frameless window</b> — the title bar is gone; traffic lights sit right at the top edge, floating directly over the sidebar and address bar instead of a separate bar above them.</li>
+  <li><b>Fixed:</b> pressing <b>Cmd-T</b> for a new tab put the cursor in the sidebar's search field instead of the page's own search — typing a URL there and hitting enter opened a second tab instead of loading into the one you just opened. New tabs now focus the page search, so typing and hitting enter loads into the tab you're on.</li>
+</ul>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.6/sill.zip" length="2466087" type="application/octet-stream" sparkle:edSignature="KTwch2F9zYpaDvVKIxhZUjTQPsymVrq243XzeUXlXjj9oXRnQPFItidVEF6m5+1PK1vcZmu+6I/TRJt8rnz2AA==" />
+    </item>
   </channel>
 </rss>
