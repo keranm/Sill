@@ -71,5 +71,29 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.6/sill.zip" length="2466087" type="application/octet-stream" sparkle:edSignature="KTwch2F9zYpaDvVKIxhZUjTQPsymVrq243XzeUXlXjj9oXRnQPFItidVEF6m5+1PK1vcZmu+6I/TRJt8rnz2AA==" />
     </item>
+    <item>
+      <title>Version 0.1.7</title>
+      <pubDate>Sun, 05 Jul 2026 07:18:35 +0000</pubDate>
+      <sparkle:version>202607050717</sparkle:version>
+      <sparkle:shortVersionString>0.1.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+  <li><b>Quick Look</b> (<b>Cmd-Option-N</b>, or <b>Cmd-Option-click</b> a tab): a small detached window for a one-off lookup. Close it and it's gone — no tab clutter — or "Open in&nbsp;&hellip;" to promote it into a real workspace.</li>
+  <li><b>Pinned Tabs</b>: right-click any tab to pin it. Pinned tabs stick around above your regular list and stay anchored to their site — an outbound link opens in <b>Glance</b> instead of replacing the page you pinned.</li>
+  <li><b>Favorites</b>: the same idea, but global — reachable from every workspace as a row of icons above the workspace switcher. <b>Cmd-1</b> through <b>Cmd-9</b> jump straight to one.</li>
+  <li><b>Glance</b>: a lightweight preview that floats over your current window when a pinned or favorited tab sends you somewhere else — expand it into a real tab, or close it (click outside, the X, or Cmd-W) and carry on where you were.</li>
+  <li>Real favicons for anything you've pinned or favorited, in place of the letter-chip icon.</li>
+  <li>Fixed a bug where promoting a Quick Look/Glance page into a workspace could leave it blank instead of showing the page.</li>
+  <li>Fixed Gmail's "View Order"-style links opening a plain new tab instead of Glance.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  A tab drifts away —<br>
+  pin it, and it stays right here.<br>
+  Quiet harbor found.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.7/sill.zip" length="2576148" type="application/octet-stream" sparkle:edSignature="CniuWumhRijUuDeY1ZBDkOyRed8tM525zGJBZ2V2+JifNigo//WjCjreBNzUXrwuJqa+aITsCmblY9SzCsqJAw==" />
+    </item>
   </channel>
 </rss>
