@@ -65,7 +65,7 @@ extension Color {
 /// fonts). Process-scoped; works from both `swift run` and the app bundle.
 enum FontLoader {
     static func registerBundledFonts() {
-        guard let urls = Bundle.module.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts"),
+        guard let urls = BundledResources.bundle?.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts"),
               !urls.isEmpty else {
             NSLog("Sill: bundled fonts missing — falling back to system font")
             return

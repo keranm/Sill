@@ -16,7 +16,7 @@ final class ContentBlocker {
     private var onReady: [(WKContentRuleList) -> Void] = []
 
     func compile() {
-        guard let urls = Bundle.module.urls(forResourcesWithExtension: "json", subdirectory: "Blocklists"),
+        guard let urls = BundledResources.bundle?.urls(forResourcesWithExtension: "json", subdirectory: "Blocklists"),
               !urls.isEmpty else { return }
         let store = WKContentRuleListStore.default()
         for url in urls {
