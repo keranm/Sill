@@ -74,7 +74,7 @@ struct RailView: View {
     private var favoritesGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
             ForEach(store.favorites) { favorite in
-                let openTab = store.tabs.first { $0.pinnedHomeDomain == HostDisplay.registrableDomain(of: favorite.url.host() ?? "") }
+                let openTab = store.tabs.first { $0.pinnedHomeDomain == DisplayNames.observationDomain(for: favorite.url.host() ?? "") }
                 let isSelected = openTab != nil && openTab?.id == store.selectedTabID
 
                 Button {

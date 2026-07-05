@@ -10,13 +10,13 @@ enum Glyph {
 
     static func letter(for url: URL?) -> String {
         guard let host = url?.host() else { return "•" }
-        let domain = HostDisplay.registrableDomain(of: host)
+        let domain = DisplayNames.observationDomain(for: host)
         return domain.first.map { String($0).uppercased() } ?? "•"
     }
 
     static func color(for url: URL?) -> Color {
         guard let host = url?.host() else { return Tokens.inkFaint }
-        let domain = HostDisplay.registrableDomain(of: host)
+        let domain = DisplayNames.observationDomain(for: host)
         var hash = 5381
         for byte in domain.utf8 { hash = (hash &* 33) &+ Int(byte) }
         return palette[abs(hash) % palette.count]

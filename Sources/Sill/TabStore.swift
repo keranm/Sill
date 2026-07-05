@@ -264,7 +264,7 @@ final class TabStore {
 
     private func isFavoriteBacked(_ tab: BrowserTab) -> Bool {
         guard let domain = tab.pinnedHomeDomain else { return false }
-        return favorites.contains { HostDisplay.registrableDomain(of: $0.url.host() ?? "") == domain }
+        return favorites.contains { DisplayNames.observationDomain(for: $0.url.host() ?? "") == domain }
     }
 
     var selectedTabID: BrowserTab.ID? {
@@ -520,8 +520,8 @@ final class TabStore {
 
     func addFavorite(title: String, url: URL, sourceTab: BrowserTab?) {
         guard favorites.count < Favorite.maxCount else { return }
-        let domain = HostDisplay.registrableDomain(of: url.host() ?? url.absoluteString)
-        guard !favorites.contains(where: { HostDisplay.registrableDomain(of: $0.url.host() ?? "") == domain }) else { return }
+        let domain = DisplayNames.observationDomain(for: url.host() ?? url.absoluteString)
+        guard !favorites.contains(where: { DisplayNames.observationDomain(for: $0.url.host() ?? "") == domain }) else { return }
 
         favorites.append(Favorite(id: UUID(), url: url, title: title))
         persistFavorites()
@@ -543,7 +543,7 @@ final class TabStore {
     /// domain in this workspace if there is one, otherwise open it fresh —
     /// pinned, so outbound links open in Quick Look rather than replacing it.
     func openFavorite(_ favorite: Favorite) {
-        let domain = HostDisplay.registrableDomain(of: favorite.url.host() ?? favorite.url.absoluteString)
+        let domain = DisplayNames.observationDomain(for: favorite.url.host() ?? favorite.url.absoluteString)
         if let existing = activeWorkspace.tabs.first(where: { $0.pinnedHomeDomain == domain }) {
             selectedTabID = existing.id
             return

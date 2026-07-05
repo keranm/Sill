@@ -36,7 +36,7 @@ final class FaviconStore {
     /// Favorited) if present, but never triggers a fetch itself.
     func image(for url: URL?) -> NSImage? {
         guard let host = url?.host() else { return nil }
-        let domain = HostDisplay.registrableDomain(of: host)
+        let domain = DisplayNames.observationDomain(for: host)
         if let cached = images[domain] { return cached }
         guard let image = NSImage(contentsOf: diskPath(for: domain)) else { return nil }
         images[domain] = image
@@ -47,7 +47,7 @@ final class FaviconStore {
     /// only, never written to disk. One attempt per domain per run.
     func requestEphemeral(for pageURL: URL?, discoveredIconURLString: String? = nil) {
         guard let host = pageURL?.host() else { return }
-        let domain = HostDisplay.registrableDomain(of: host)
+        let domain = DisplayNames.observationDomain(for: host)
         guard images[domain] == nil, !attempted.contains(domain) else { return }
         attempted.insert(domain)
         fetch(domain: domain, discoveredIconURLString: discoveredIconURLString, persist: false)
@@ -57,7 +57,7 @@ final class FaviconStore {
     /// survives relaunch even for a site not revisited that session.
     func fetchAndCache(for pageURL: URL, discoveredIconURLString: String? = nil) {
         guard let host = pageURL.host() else { return }
-        let domain = HostDisplay.registrableDomain(of: host)
+        let domain = DisplayNames.observationDomain(for: host)
         guard !FileManager.default.fileExists(atPath: diskPath(for: domain).path) else { return }
         attempted.insert(domain)
         fetch(domain: domain, discoveredIconURLString: discoveredIconURLString, persist: true)

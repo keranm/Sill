@@ -46,7 +46,7 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
         guard let tab, let requestURL, let homeDomain = tab.pinnedHomeDomain else { return nil }
         let destination = Self.resolvingRedirectWrapper(requestURL)
         guard let destinationHost = destination.host(),
-              HostDisplay.registrableDomain(of: destinationHost) != homeDomain else { return nil }
+              DisplayNames.observationDomain(for: destinationHost) != homeDomain else { return nil }
         return destination
     }
 

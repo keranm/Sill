@@ -71,10 +71,13 @@ final class BrowserTab: Identifiable {
     }
 
     /// The home domain a pinned tab is anchored to — outbound links to a
-    /// different registrable domain open in Quick Look rather than replacing it.
+    /// different site open in Glance rather than replacing it. Subdomain-
+    /// preserving (DisplayNames.observationDomain), not eTLD+1: a self-hosted
+    /// setup like home.example.com is a completely different site from
+    /// example.com and must never be treated as "the same domain."
     var pinnedHomeDomain: String? {
         guard isPinned, let host = pinnedURL?.host() else { return nil }
-        return HostDisplay.registrableDomain(of: host)
+        return DisplayNames.observationDomain(for: host)
     }
 
     // MARK: Materialize / dehydrate
