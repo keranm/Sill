@@ -11,7 +11,7 @@ Standard WKWebView/Safari inspector. `isInspectable = true`, always on, no trigg
 Core toolbar feature, not developer-gated. Full-page and partial/visible-area capture, both always available. Same snapshot mechanism as the MCP `capture_page` tool; two entry points, one capability.
 
 ## 3. API client (lite)
-First-party request builder: method, URL, headers, body, response viewer, history, named environments. No collections, no scripting, no team features.
+First-party request builder: method, URL, headers, body, response viewer, history, named environments. Shipped with more than originally scoped here: OpenAPI/Swagger/Postman collection import (`APIClientStore.importCollection`), auto-detected from live docs pages. No scripting, no team features.
 
 ## 4. JSON formatting
 Always-on rendering: any JSON-content-type or JSON-parseable response body renders as a collapsible, highlighted tree. Applied on direct navigation and inside the API client's response viewer. No extension, no toggle.

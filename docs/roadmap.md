@@ -24,9 +24,12 @@ drag-and-drop tab management. Bundle id is `app.sill`.
   `docs/archive/Sill-PoC-PRD.md` §7. This is the thing everything else here
   is downstream of: whether Sill graduates into "build this out" territory
   or a hypothesis quietly fails is evidence, not a vibe.
-- **Apple default-browser entitlement.** Tracked in `docs/7-day-polish.md`
-  §1 — sent (or about to be), long turnaround expected. Downloads and Web
-  Inspector's long-term reliability both hinge partly on the outcome.
+- **Apple entitlement requests.** Tracked in `docs/7-day-polish.md` §1 —
+  **not yet sent**, long turnaround expected once it is. Two separate asks
+  worth bundling into one email: `com.apple.developer.web-browser` (default-
+  browser eligibility; Web Inspector's long-term reliability hinges partly
+  on this) and `com.apple.developer.web-browser.public-key-credential`
+  (passkeys — see below). Downloads turned out not to depend on either.
 
 ## Proposed, not built
 
@@ -52,9 +55,21 @@ drag-and-drop tab management. Bundle id is `app.sill`.
 
 ## Accepted gaps (revisit only on new evidence)
 
-- **No extensions** → no in-shell 1Password/Bitwarden. Mitigated today by
-  the "that was annoying" friction counter; only worth building if that
-  counter shows it's the thing actually breaking daily use.
+- **Passkeys don't work in-shell** (`docs/M0-login-spike.md`). Needs the
+  `com.apple.developer.web-browser.public-key-credential` entitlement
+  (separate from the default-browser one — see "Next up" above) plus real
+  integration work against `ASAuthorizationWebBrowserPublicKeyCredentialManager`
+  once granted. Gated on Apple, not started.
+- **No in-shell password-manager extension** (no 1Password/Bitwarden
+  browser extension, since Sill has no WebExtension host) — **but this
+  turned out not to be the gap it looked like**: 1Password's Universal
+  Autofill (macOS Accessibility API + global `⌘\`) is browser-agnostic by
+  construction and confirmed working in Sill already, live-tested
+  2026-07-07, zero code changes. The extension-based integration remains
+  genuinely out of reach short of Sill building its own WebExtension
+  compatibility layer (what Kagi's Orion did, on the same WebKit engine —
+  a large undertaking, not a plugin ask) — but for day-to-day autofill,
+  that gap is effectively already closed.
 - **Chromium escape hatch.** WebKit is the engine by choice, not marriage —
   if `engine`-tagged friction stings ever show WebKit itself is the reason
   daily use struggles, `docs/archive/Sill-PoC-PRD.md` §7's engine gate is the

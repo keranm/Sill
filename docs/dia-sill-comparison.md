@@ -49,9 +49,9 @@ Sources:
   sub-grouping inside one. Multiple reviewers independently called this
   Dia's best non-AI feature. Pure UI, zero network calls, no LLM — fits
   Sill's constraints entirely if ever wanted.
-- **Split View.** Already flagged as a real gap when Glance was built (Arc
-  and Dia both have it; Sill doesn't). Real feature, real work, not a quick
-  add.
+- ~~**Split View.**~~ Was a real gap when Glance was built; shipped since as
+  **Panel view** (drag a tab onto the page you're viewing to split the
+  window, resize the divider) — see `docs/M7-owner-features.md`.
 - **Meeting-aware grouping**, conceptually. Would require calendar access —
   a new permission surface and arguably a new "sensitive domain" question,
   not a quick add either.

@@ -100,8 +100,11 @@ app-wide `.commands` menu shortcut for the same key.
    overlay drawn on top doesn't automatically override that. Fixed with an
    `arrowCursor()` view helper (`NSCursor.arrow.push()`/`.pop()` on hover).
 
-No Split View button: Sill has no split-view feature to drop into. Flagged,
-not built — see `docs/dia-sill-comparison.md`.
+~~No Split View button: Sill has no split-view feature to drop into.~~ Shipped
+since as **Panel view** (commit `3db6025`, v0.1.10-era): drag a tab onto the
+current page to split 50/50, drag the divider to resize, pairing and split
+ratio persist across quit/relaunch. No dedicated doc for that commit beyond
+its own message — see `git show 3db6025` for the full description.
 
 ## Real favicons — `FaviconStore.swift`, `Glyph.swift`
 

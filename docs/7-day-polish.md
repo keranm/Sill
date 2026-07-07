@@ -20,11 +20,17 @@ Everything else on this list is ours to fix. This one isn't — it's an email
 to Apple, and historically a slow, opaque process even for solo developers.
 Send it first so the clock is running while the rest of this list gets worked.
 
-- [ ] Send `docs/apple-default-browser-request-draft.md` to
-      `default-browser-requests@apple.com`, filled in with Team ID
-      (`AUEPCDGA5G`) and the **new** bundle id (`app.sill`, not the old
-      `app.sill.poc` — the rename shipped in v0.1.12 specifically so the
-      request goes out under the identity we intend to keep).
+- [ ] **Not yet sent** (draft is filled in and ready — Team ID `AUEPCDGA5G`,
+      bundle id `app.sill`). Send `docs/apple-default-browser-request-draft.md`
+      to `default-browser-requests@apple.com`.
+- [ ] **Before sending, decide whether to bundle a second ask in the same
+      email**: passkeys need their own, separate entitlement —
+      `com.apple.developer.web-browser.public-key-credential` — distinct
+      from `com.apple.developer.web-browser`. Confirmed by Apple's own
+      AutoFill/WebAuthn engineer (Ricky Mondello) as the mechanism Chrome
+      and Firefox use for Apple Passwords passkey support. Worth asking
+      for both in one email rather than two separate slow round-trips,
+      unless there's a reason to keep the requests separate.
 - [ ] Once (if) granted: re-test Web Inspector's long-term reliability
       (Downloads turned out not to depend on it — see §2, resolved
       2026-07-07 — but the private Inspector API's future behavior is
