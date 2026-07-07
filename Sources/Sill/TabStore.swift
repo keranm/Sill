@@ -633,7 +633,7 @@ final class TabStore {
         guard let workspace = workspace(containing: tab),
               let index = workspace.tabs.firstIndex(where: { $0.id == tab.id }) else { return }
         if tab.isAPIClientTab {
-            apiClient.removeDraftState(for: tab.id)
+            apiClient.removeAllRequestTabs(for: tab.id)
         }
         workspace.tabs.remove(at: index)
         Task { await tab.dehydrate() }

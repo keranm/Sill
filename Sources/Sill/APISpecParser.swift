@@ -1,8 +1,8 @@
 import Foundation
 
 /// Where a spec's declared auth token goes once a request is built, and how
-/// to write it there — e.g. AirGradient's `?token={{token}}` query param, or
-/// a bearer scheme's `Authorization: Bearer {{token}}` header (the "Bearer "
+/// to write it there — e.g. AirGradient's `?token={token}` query param, or
+/// a bearer scheme's `Authorization: Bearer {token}` header (the "Bearer "
 /// prefix belongs in the value, not the env variable, so the user's
 /// environment entry holds just the bare token).
 struct APIAuthPlaceholder: Codable, Equatable {
@@ -10,13 +10,13 @@ struct APIAuthPlaceholder: Codable, Equatable {
     /// The literal header name (e.g. "Authorization") or query key (e.g.
     /// "token") this gets written under.
     var fieldName: String
-    /// The `{{name}}` environment variable seeded for the user to fill in.
+    /// The `{name}` environment variable seeded for the user to fill in.
     var envVariableName: String
     /// Prepended to the variable in the actual header/query value — "Bearer "
     /// for bearer schemes, empty for a bare apiKey.
     var valuePrefix: String
 
-    var placeholderValue: String { "\(valuePrefix){{\(envVariableName)}}" }
+    var placeholderValue: String { "\(valuePrefix){\(envVariableName)}" }
 }
 
 /// A parsed API spec/collection, normalized from either an OpenAPI/Swagger

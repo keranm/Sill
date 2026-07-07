@@ -32,6 +32,10 @@ enum Tokens {
     /// restrained, no red alarm theatre.
     static let warning = Color(hex: 0x8F5B22)
     static let danger = Color(hex: 0xA94A42)
+    /// A resolved, known-good state (e.g. an API client `{variable}` that
+    /// exists in the active environment) — same restrained-not-alarm-theatre
+    /// register as `warning`/`danger`, just the positive end of it.
+    static let success = Color(hex: 0x4B7350)
     /// Page stage behind web content.
     static let stage = Color.white
 

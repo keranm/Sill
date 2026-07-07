@@ -82,6 +82,7 @@ private struct JSONNodeView: View {
                 .foregroundStyle(literalColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .textSelection(.enabled)
         }
     }
 
@@ -91,6 +92,7 @@ private struct JSONNodeView: View {
             Text("\(key):")
                 .font(Tokens.font(11.5, .medium))
                 .foregroundStyle(Tokens.inkFaint)
+                .textSelection(.enabled)
         }
     }
 
