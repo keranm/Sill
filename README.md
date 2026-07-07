@@ -1,39 +1,57 @@
 # Sill
 
-A calm macOS browser proof of concept: it observes how it is used (metadata only,
-locally, with consent) and sparingly offers to fold what it notices back into the
-interface, chiefly as workspaces.
+A calm macOS browser. Sill notices how you actually use it — the routines,
+the tabs you keep together, the sites you're in and out of all day — and
+quietly offers to fold that back into the interface, mostly as workspaces
+that hibernate when you're not using them and favorites that follow you
+everywhere. Nothing leaves your Mac: no telemetry, no account, no cloud sync
+of your browsing.
 
-- **Behaviour spec:** `Sill-PoC-PRD.md` (source of truth for what happens, when)
-- **Visual spec:** `Project Browse — Design Package.pdf` (source of truth for everything visual)
-- **Stack:** Swift + SwiftUI, WKWebView on system WebKit, SQLite. No network calls of
-  its own, no telemetry, no LLM. PoC, light mode first.
+**[Download the latest release](https://github.com/keranm/Sill/releases/latest)**
+— or get it from [keranmckenzie.com/sill](https://keranmckenzie.com/sill) for
+notes on what's inside. Requires macOS 14 or later. Auto-updates in place
+after that.
 
-## Build and run
+## What it does
+
+- **Workspaces** — separate contexts for separate parts of your life (work,
+  shopping, whatever), each with its own tabs. Switch away and the tabs
+  behind you hibernate for real: no memory held, no processes running, back
+  instantly when you return.
+- **Favorites** — the handful of sites you're in and out of constantly
+  (mail, calendar, whatever they are for you), pinned above the workspace
+  switcher and reachable from any workspace as the same live tab, not a copy
+  that can drift out of sync.
+- **A learning engine that only tells you what it can prove** — Sill watches
+  for real patterns in how you browse (a morning routine, sites that always
+  open together) and surfaces a suggestion only when the evidence is solid,
+  with the reasoning always one click away. No AI, no guessing dressed up as
+  insight.
+- **Developer tools** — Web Inspector, page capture, in-page JSON formatting,
+  and a first-party API client with request history, environments, and
+  OpenAPI/Swagger/Postman collection import — for anyone who lives in both a
+  browser and an API client all day.
+- Everything else you'd expect: tabs, history, bookmarks, downloads,
+  cross-browser import from Safari/Chrome/Arc/Firefox on first run.
+
+## Privacy
+
+Sill records browsing metadata locally (domain, path, timestamps — never
+page content) only with your consent, only to power the features above, and
+never leaves your Mac. Pause it or delete everything, any time, from the
+Learning page. Full detail in [`docs/roadmap.md`](docs/roadmap.md) and the
+archived design docs under [`docs/archive/`](docs/archive/).
+
+## For the curious
+
+This repository is the actual source Sill ships from, if you'd like to read
+the code, follow along, or build it yourself:
 
 ```sh
 make run        # release build → build/Sill.app → open
 make debug      # debug configuration
-make clean
 ```
 
-Requires Xcode (tested with 26.6 / Swift 6.3 on macOS 26).
-
-## Milestones (strict order, PRD §5)
-
-| | Milestone | Status |
-|---|---|---|
-| M0 | Login viability spike | **Passed** — Google/GitHub/Microsoft sign-ins persist across restart (`docs/M0-login-spike.md`) |
-| M1 | Shell (sidebar-first, D2a) | **Built** — awaiting the owner's full-workday gate (`docs/M1-shell.md`) |
-| M2 | Workspaces, hibernation, benchmark | **Built** — H4 numbers need a clean measurement run (`docs/M2-workspaces.md`) |
-| M3 | Consent + history import | **Built** — owner to grant FDA + run Safari import (`docs/M3-consent-import.md`) |
-| M4 | Learning engine | **Built — harness 4/4, 1 FP** (`docs/M4-learning-engine.md`); real-history review pending import |
-| M5 | Home, cards, Learning page | **Built** — demo-seed verified; owner to drive confirm flow (`docs/M5-surfaces.md`) |
-| M6 | Palette + instrumentation | **Built** (`docs/M6-palette-instrumentation.md`) — fixed a real-URL-guessing bug found via owner's import |
-| M7 | Sense-check fortnight (no code) | **Ready to start** — all milestones M0–M6 built |
-
-## Hypotheses being tested (PRD §1)
-
-H1 detection ≥50% confirmed · H2 at least one genuine surprise · H3 trust ("my data,
-shown to me") · H4 measurable lightness vs Arc/Chrome · H5 daily-drivable for two weeks.
-A clean negative on any of these is a successful PoC outcome.
+Requires Xcode. Most people should just grab the release above, though —
+building from source gets you an unsigned, un-notarized copy with none of
+the auto-update machinery.
