@@ -160,5 +160,26 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.11/sill.zip" length="2647766" type="application/octet-stream" sparkle:edSignature="gTNZrGDVr+iN/FbKTt0f5ZlWEnhUAiDvIZTP9RDTP279YyiOp5UAvl7OB2HyBCLAQdQai6oU6ZCBONuuwioaCA==" />
     </item>
+    <item>
+      <title>Version 0.1.12</title>
+      <pubDate>Tue, 07 Jul 2026 00:30:22 +0000</pubDate>
+      <sparkle:version>202607070029</sparkle:version>
+      <sparkle:shortVersionString>0.1.12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+Sill can now open its own inspector, snap a screenshot, and talk to APIs — all without leaving the tab strip.
+
+- **Developer Tools**: Show Web Inspector, Capture Visible/Full Page, and a full **API Client** — now a proper tab, not a side window. Import OpenAPI, Swagger, and Postman collections straight from a docs page.
+- In-page JSON now renders as a collapsible tree, not a wall of text.
+- ⌘T puts your cursor straight in the search field — no extra click.
+- Downloads now show a quiet toast when they finish.
+- The bundle identifier drops "poc" (`app.sill.poc` → `app.sill`) as we start locking things in. **One-time only**: this logs you out of any sites you were signed into in Sill — your workspaces, history, and tabs are untouched.
+
+*Why do developers make good campers? They handle their own exceptions.*
+
+[Full changelog](https://github.com/keranm/Sill/compare/v0.1.11...v0.1.12)
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.12/sill.zip" length="2880915" type="application/octet-stream" sparkle:edSignature="arC38SxPNMvtfh4GBqon6dzOacoGAUxy0k35V3AtvMdOZ6t824g1NxLfSlcEqtixVAFtFpVSVJVGo3IUceyDCQ==" />
+    </item>
   </channel>
 </rss>
