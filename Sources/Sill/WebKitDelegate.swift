@@ -87,6 +87,61 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
         store?.closeTab(webView: webView)
     }
 
+    // MARK: - Context menu downloads
+
+    /// WebKit's own "Download Linked File" / "Download Image" context-menu
+    /// items don't actually do anything for a third-party host app — the
+    /// item is present because WebKit puts it there unconditionally, but
+    /// nothing wires it to a real download unless the host app does that
+    /// itself. (Ordinary navigation-triggered downloads already work fine
+    /// via the `WKNavigationDelegate`/`WKDownloadDelegate` pair below —
+    /// this is a separate, WebKit-internal gap specific to the context
+    /// menu, confirmed live: right-click download silently no-ops while a
+    /// direct download link works.) Fixed the same way the Inspector menu
+    /// item is (`DeveloperTools.swift`): a private, `responds(to:)`-style
+    /// SPI hook — `_webView:getContextMenuFromProposedMenu:forElement:
+    /// userInfo:completionHandler:` — to read the right-clicked link/image
+    /// URL, then rewire just those two menu items to fire a real download
+    /// through `WKWebView.startDownload(using:completionHandler:)`, which
+    /// *is* public API and hands back an ordinary `WKDownload` that
+    /// `DownloadsStore.adopt(_:)` already knows how to take from there.
+    @objc(_webView:getContextMenuFromProposedMenu:forElement:userInfo:completionHandler:)
+    func webView(
+        _ webView: WKWebView,
+        getContextMenuFromProposedMenu menu: NSMenu,
+        forElement element: AnyObject,
+        userInfo: AnyObject?,
+        completionHandler: @escaping (NSMenu?) -> Void
+    ) {
+        guard let hitTestResult = element.value(forKey: "hitTestResult") as? NSObject else {
+            completionHandler(menu)
+            return
+        }
+        let linkURL = hitTestResult.value(forKey: "absoluteLinkURL") as? URL
+        let imageURL = hitTestResult.value(forKey: "absoluteImageURL") as? URL
+        for item in menu.items {
+            let url: URL?
+            switch item.identifier?.rawValue {
+            case "WKMenuItemIdentifierDownloadLinkedFile": url = linkURL
+            case "WKMenuItemIdentifierDownloadImage": url = imageURL
+            default: continue
+            }
+            guard let url else { continue }
+            let action = MenuDownloadAction { [weak self, weak webView] in
+                guard let webView else { return }
+                webView.startDownload(using: URLRequest(url: url)) { [weak self] download in
+                    self?.store?.downloads.adopt(download)
+                }
+            }
+            // Retained by the menu item for exactly as long as it might be
+            // clicked; nothing else needs to keep this alive.
+            item.representedObject = action
+            item.target = action
+            item.action = #selector(MenuDownloadAction.fire(_:))
+        }
+        completionHandler(menu)
+    }
+
     // MARK: - Navigation policy
 
     func webView(
@@ -157,6 +212,7 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
         // navigation, since a JSON page is likely to be a spec file only
         // some of the time this tab is used for anything at all.
         tab.detectedAPICollection = nil
+        tab.detectionTask?.cancel()
         // Captured now so a slow detection from this navigation can't land
         // after the user has already moved on and overwrite whatever the
         // next (or a since-cleared) navigation set — checked again before
@@ -177,22 +233,31 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
                     tab.detectedAPICollection = APISpecParser.detect(json, name: name, sourceURL: webView.url)
                 }
             } else {
-                // Might be a rendered Swagger UI / ReDoc docs page rather
-                // than the raw spec — these are JS SPAs that need a moment
-                // to actually initialize before their spec URL is
-                // discoverable, hence the delay rather than checking
-                // immediately.
-                Task { @MainActor [weak tab, weak webView] in
-                    try? await Task.sleep(for: .milliseconds(800))
+                // Cheap synchronous pre-check first: almost every page is
+                // neither Swagger UI nor ReDoc, so skip the 800ms SPA-init
+                // wait (and its own JS eval) unless a trace of either is
+                // already in the DOM.
+                webView.evaluateJavaScript("!!(window.ui || document.querySelector('redoc'))") { [weak tab, weak webView] present, _ in
                     guard let tab, let webView, webView.url == detectionURL,
-                          let discovered = try? await webView.evaluateJavaScript(Self.apiSpecURLDiscoveryScript) as? String,
-                          let specURL = URL(string: discovered, relativeTo: webView.url)?.absoluteURL else { return }
-                    guard let (data, response) = try? await URLSession.shared.data(from: specURL),
-                          (response as? HTTPURLResponse)?.statusCode == 200,
-                          let json = try? JSONSerialization.jsonObject(with: data),
-                          webView.url == detectionURL else { return }
-                    let name = webView.url?.host() ?? "Imported API"
-                    tab.detectedAPICollection = APISpecParser.detect(json, name: name, sourceURL: specURL)
+                          present as? Bool == true else { return }
+                    // Might be a rendered Swagger UI / ReDoc docs page rather
+                    // than the raw spec — these are JS SPAs that need a moment
+                    // to actually initialize before their spec URL is
+                    // discoverable, hence the delay rather than checking
+                    // immediately.
+                    tab.detectionTask = Task { @MainActor [weak tab, weak webView] in
+                        try? await Task.sleep(for: .milliseconds(800))
+                        guard !Task.isCancelled,
+                              let tab, let webView, webView.url == detectionURL,
+                              let discovered = try? await webView.evaluateJavaScript(Self.apiSpecURLDiscoveryScript) as? String,
+                              let specURL = URL(string: discovered, relativeTo: webView.url)?.absoluteURL else { return }
+                        guard let (data, response) = try? await URLSession.shared.data(from: specURL),
+                              (response as? HTTPURLResponse)?.statusCode == 200,
+                              let json = try? JSONSerialization.jsonObject(with: data),
+                              webView.url == detectionURL else { return }
+                        let name = webView.url?.host() ?? "Imported API"
+                        tab.detectedAPICollection = APISpecParser.detect(json, name: name, sourceURL: specURL)
+                    }
                 }
             }
         }
@@ -315,5 +380,19 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Cancel")
         completionHandler(alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil)
+    }
+}
+
+/// `NSMenuItem.action` needs a real target/selector — this just lets the
+/// context-menu download fix (above) hand it an ordinary Swift closure.
+private final class MenuDownloadAction: NSObject {
+    private let handler: () -> Void
+
+    init(_ handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+
+    @objc func fire(_ sender: Any?) {
+        handler()
     }
 }

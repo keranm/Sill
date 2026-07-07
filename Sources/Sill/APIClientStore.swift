@@ -74,7 +74,9 @@ final class APIClientStore {
     private(set) var collections: [APICollection] = []
 
     @ObservationIgnored private let db: Database
+    @ObservationIgnored private var persistEnvironmentsTask: Task<Void, Never>?
     private static let historyCap = 50
+    private static let environmentPersistDebounce = Duration.milliseconds(500)
 
     init(db: Database) {
         self.db = db
@@ -156,18 +158,29 @@ final class APIClientStore {
     func addEnvironment(name: String) -> APIEnvironment {
         let environment = APIEnvironment(id: UUID(), name: name, variables: [:])
         environments.append(environment)
+        persistEnvironmentsTask?.cancel()
         persistEnvironments()
         return environment
     }
 
+    /// Called on every keystroke while editing an environment's name or
+    /// variables, so the SQLite write is debounced — `environments` (the
+    /// `@Observable` state) is the source of truth in between, and only the
+    /// last write in a burst of edits actually hits disk.
     func updateEnvironment(_ environment: APIEnvironment) {
         guard let index = environments.firstIndex(where: { $0.id == environment.id }) else { return }
         environments[index] = environment
-        persistEnvironments()
+        persistEnvironmentsTask?.cancel()
+        persistEnvironmentsTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.environmentPersistDebounce)
+            guard !Task.isCancelled else { return }
+            self?.persistEnvironments()
+        }
     }
 
     func removeEnvironment(_ environment: APIEnvironment) {
         environments.removeAll { $0.id == environment.id }
+        persistEnvironmentsTask?.cancel()
         persistEnvironments()
     }
 

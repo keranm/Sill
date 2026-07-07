@@ -36,6 +36,11 @@ final class BrowserTab: Identifiable {
     /// Collection JSON file — session-only, never persisted, just drives the
     /// header's "Import API" affordance. Re-detected fresh on every navigation.
     var detectedAPICollection: APICollection?
+    /// The in-flight Swagger/ReDoc discovery task (if any) from the most
+    /// recent navigation on this tab. Cancelled at the start of the next
+    /// navigation so a slow detection can't keep running — and land — after
+    /// the user has already moved on.
+    @ObservationIgnored var detectionTask: Task<Void, Never>?
     /// Set by the navigation delegate on TLS/cert failure; drives the interstitial.
     var certificateFailure: (host: String, reason: String)?
     /// Transition typing for observation: "typed" when the load came from our

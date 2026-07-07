@@ -25,7 +25,11 @@ final class Workspace: Identifiable {
     }
 
     /// Dormant = no live webviews (how the switcher decides to say "resting").
+    /// Checks `webView` directly rather than `isMaterialized` — that flag
+    /// treats API Client tabs as always-materialized (they have no webview
+    /// to dehydrate), which would otherwise make a workspace holding only
+    /// an API Client tab report as non-dormant.
     var isDormant: Bool {
-        !tabs.contains { $0.isMaterialized }
+        !tabs.contains { $0.webView != nil }
     }
 }
