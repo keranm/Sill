@@ -207,5 +207,26 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.13/sill.zip" length="2886236" type="application/octet-stream" sparkle:edSignature="kia1IrXhdAPBQ0ZRNz684QUiM30fGM8ToHJS2wSVZnIF5GRgk3bwvngjW2YDiMr36o8AEwSbQRLK+w7tM53iDw==" />
     </item>
+    <item>
+      <title>Version 0.1.14</title>
+      <pubDate>Tue, 07 Jul 2026 02:25:26 +0000</pubDate>
+      <sparkle:version>202607070224</sparkle:version>
+      <sparkle:shortVersionString>0.1.14</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>Favorites now stay the same app everywhere — no more finding a different page open depending which workspace you're in.</p>
+<ul>
+  <li><b>Favorites</b>: each one is now a single shared tab across every workspace, not a separate copy per workspace that could quietly drift apart. It also never unloads, the same as a Dock icon — switch workspaces as much as you like and it's still right where you left it.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  Why don't favorites ever get lonely?<br>
+  They're always in every room at once.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.1.13...v0.1.14">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.14/sill.zip" length="2886993" type="application/octet-stream" sparkle:edSignature="Pdz2enO11z4T3E7NuEdNtycr1a5e1tNLJDWaCesaMyLeQSJ557A+A9NUsxGlY91Dz5FoL1GBay4mijSpj/vaCg==" />
+    </item>
   </channel>
 </rss>
