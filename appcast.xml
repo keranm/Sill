@@ -185,5 +185,27 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.12/sill.zip" length="2880915" type="application/octet-stream" sparkle:edSignature="arC38SxPNMvtfh4GBqon6dzOacoGAUxy0k35V3AtvMdOZ6t824g1NxLfSlcEqtixVAFtFpVSVJVGo3IUceyDCQ==" />
     </item>
+    <item>
+      <title>Version 0.1.13</title>
+      <pubDate>Tue, 07 Jul 2026 01:34:18 +0000</pubDate>
+      <sparkle:version>202607070133</sparkle:version>
+      <sparkle:shortVersionString>0.1.13</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>Right-click "Download Linked File" and "Download Image" now actually download the thing — they used to just sit there.</p>
+<ul>
+  <li><b>Downloads</b>: right-click → Download Linked File / Download Image now saves the file, same as a real download link always did.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  You asked for the file.<br>
+  Now it sits inside Downloads —<br>
+  no more asking twice.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.1.12...v0.1.13">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.13/sill.zip" length="2886236" type="application/octet-stream" sparkle:edSignature="kia1IrXhdAPBQ0ZRNz684QUiM30fGM8ToHJS2wSVZnIF5GRgk3bwvngjW2YDiMr36o8AEwSbQRLK+w7tM53iDw==" />
+    </item>
   </channel>
 </rss>
