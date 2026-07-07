@@ -3,15 +3,18 @@
 > the owner has decided to stop describing the product this way. This
 > document is kept as the historical record of how Sill got here; it is not
 > being updated to match the shipped product. For what's actually built and
-> what's next, see `docs/roadmap.md`.
+> what's next (including the still-unbuilt MCP/H6 layer this doc proposed),
+> see `docs/roadmap.md`.
 
-# Sill — Proof of Concept PRD
+# Sill — PoC Evolution
 
-**Version:** 1.1 · 3 July 2026
-**Working name:** Sill (recommended in the design package, pending final ratification; use throughout the build, keep it a one-line change).
-**Companion document:** `Project_Browse___Design_Package.pdf`. The two documents together are the complete handoff. **The PDF is the source of truth for everything visual** (layout, tokens, type, colour, copy register). **This PRD is the source of truth for behaviour** (what happens, when, under which rules). Where they conflict, this PRD wins, and every deliberate deviation from the PDF is listed in §8 so nothing is silently overridden.
+**Version:** draft, forked from PRD v1.0/1.1 · 3 July 2026
+**Status:** This is **not** the document the current build was built from. That document is `Sill-PoC-PRD.md` v1.1, uploaded separately, and it is canonical for what's actually shipped. This file is where speculative additions from later conversation (MCP layer, API client, H6, the developer-inspector line, the agents/SaaS roadmap) live until a decision is made to fold any of them back into a real, versioned spec and hand it to a build.
+
+Treat everything below §2 as **proposed**, not built. Nothing here should be assumed present in the running app without checking the actual code.
 
 ---
+
 
 ## 1. What this PoC is for
 
@@ -22,8 +25,9 @@ This is not production software. It is disposable code built to answer five ques
 - **H1 Detection:** Routines can be found from navigation metadata alone, with ≥ 50% of surfaced suggestions confirmed as real by the user.
 - **H2 Revelation:** At least one suggestion genuinely surprises the user (a pattern they didn't know they had, or a cost they'd never seen).
 - **H3 Trust:** After two weeks, the experience reads as "my data, shown to me", never "something has been watching me".
-- **H4 Lightness:** Workspace hibernation makes Sill measurably lighter than Arc and Chrome at identical tab load — with the hibernation effect measured separately from the WebKit-vs-Chromium engine advantage, so the engine choice is never passed off as the feature (§4.2). A number, not a vibe.
+- **H4 Lightness:** Workspace hibernation makes Sill measurably lighter than Arc and Chrome at identical tab load. A number, not a vibe.
 - **H5 Drivability:** The owner uses Sill as their real work browser for two consecutive weeks by choice.
+- **H6 Agent legibility** (new, tracked separately — see §4.10): agent access via MCP is exposed narrowly and reads on the Learning page exactly like the browser's own observations. A pass here is evidence for the *next* phase (workspaces evolving around agents), not a claim that phase has begun.
 
 A clean negative on any hypothesis is a successful PoC outcome. Do not soften results.
 
@@ -61,6 +65,8 @@ Sidebar-first, exactly as drawn: left rail with workspace switcher, "Search or g
 - **Homoglyph policy:** IDN domains render in punycode unless the label is single-script; mixed-script lookalikes always show punycode.
 
 New tab, close tab, reorder, back/forward, reload, downloads list, session restore on launch. Zero learning tax: any experienced browser user lands productive instantly. The caliber bar is Arc and Zen, not legacy mimicry.
+
+**Developer inspector:** `WKWebView.isInspectable = true` on every view, always on, reachable from the standard right-click "Inspect Element" and a menu item. This is the entire developer-tooling commitment for the PoC: Safari's own Web Inspector, for free, no custom build. No attempt to match or exceed Chrome DevTools — general users never see this surface, and that's by design, not a gap.
 
 ### 4.2 Workspaces and hibernation (PDF: D2a switcher and restore states)
 - Workspaces are first-class contexts: create (⌘⇧N), name, switch via the rail popover exactly as drawn. Dormant workspaces are faint facts, never badged.
@@ -110,9 +116,26 @@ Build exactly as drawn: status line ("Observing locally since… Nothing has lef
 - **Export:** aggregate JSON by explicit user action only; must contain no URLs, titles, or individual timestamps — publishable without leaking history.
 - **Demo seed (dev flag only):** a synthetic 30-day history generator with 4 planted routines plus realistic noise, loadable behind a flag so the entire card→confirm→workspace flow can be sense-checked on day one without waiting for organic detection. The same generator is the detection test harness. Clearly walled off from real data; never both in one database.
 
----
+### 4.10 API client and MCP layer (new for this PoC)
 
-## 5. Milestones
+**API client.** A lightweight request builder as a first-party panel, not a capability plugin: method, URL, headers, body, response viewer, request history, and named environments (so a token captured while logged into an app in a workspace can be reused deliberately, never silently). Bounded scope: no collections/team-sharing/mocking/scripting. This is Postman's core loop, nothing more, sitting where the friction actually happens instead of in a separate app the user tabs away to.
+
+**MCP layer.** Sill exposes an MCP server so an external agent (Claude Code, Claude Desktop, or similar) can query and act through it. This is a distinct hypothesis, not folded into H1–H5:
+
+- **H6 Agent legibility:** an agent connected via MCP can read the present moment (active tab/workspace state) and issue an API-client request, and every such read or action appears on the Learning page in the same voice as everything else, indistinguishable in kind from the browser's own observations. Sill learns from behaviour; it does not share that learning with an agent — reach-in is scoped to *right now*, never to the observation history. If an agent's access can't be explained as plainly as a suggestion card, or if it reaches beyond the present moment into what Sill has learned, H6 fails regardless of whether the plumbing works.
+
+Scope for the PoC: **read tools only**, plus one narrow write path. Every exposed tool answers a question about *right now* — the active tab, the active context, a screenshot taken on request. None of them hand over the learning history itself.
+- Exposed: current tab URL/title, workspace list and contents, "run this request" via the API client, **`capture_page(tab_id)`** returning a full-page screenshot (handles scroll/lazy-load/sticky headers, same problem GoFullPage-style extensions already solve), and **`describe_active_context()`** returning current URL/title/workspace so an agent doesn't need to be told what's on screen before answering a question about it.
+- **Not exposed:** no tab creation, no navigation, no form-filling, no credential access beyond what the API client's named environments already hold, no continuous or streaming capture — every read is a single, on-request snapshot, never a standing feed. **Also not exposed: the Learning page's contents, or anything the observation engine has inferred.** Sill learns from the owner's behaviour; it does not hand that learning to an agent. An agent can see what's on screen right now, the same as glancing at a shared monitor — it cannot ask what patterns, routines, or history Sill holds. That boundary is deliberate and not to be reopened without a separate, explicit decision. Standing delegation (rung five of the ladder from earlier discussion) is likewise explicitly not this PoC's job.
+- The exclusion list applies to `capture_page` exactly as it applies to observation: a screenshot of an excluded domain is not captured, full stop.
+- Every MCP call, screenshots included, is logged as an event, on the same footing as a page visit, subject to the same exclusion list, and visible **to the owner** on the Learning page under a new "Agent activity" heading — not hidden in a debug log, and not itself a channel the agent can read back through. The ledger is for the human; it is a record of the agent, not a resource available to it. Representing "an agent captured a full visual of your screen" as calmly and legibly as "an agent read your tab title" is a real copy problem, not just an engineering one, and belongs with Design rather than improvised in the build.
+- This is where the trust-ledger work already done for H3 pays a second dividend: the same infrastructure that makes suggestions legible to a human makes agent access auditable. Building H6 mostly means routing a new caller through machinery that already exists.
+
+**Dogfooding note:** the owner intends to use these two tools directly while building Sill itself — asking Claude Code to look at the running app instead of manually screenshotting and pasting. This is the first real test of H6, not a separate feature: if agent access here feels like "my data, shown to me" during actual daily use, that's the strongest evidence the hypothesis can get.
+
+**Done when (joins M6):** an external MCP client can list workspaces, read the active tab, capture a full-page screenshot, describe the active context, and fire an API-client request, and every one of those calls shows up correctly and comprehensibly on the Learning page. If agent activity on the ledger reads as clear as a suggestion card, H6 passes.
+
+
 
 Strict order. Each ends at a stopping point: demonstrate the definition of done before starting the next.
 
@@ -128,7 +151,7 @@ Strict order. Each ends at a stopping point: demonstrate the definition of done 
 
 **M5 — Suggestion surfaces and Learning page.** §4.3, 4.6, 4.7 to the PDF's mocks, light mode. *Done when:* a real detection travels end-to-end into a card; confirm births a populated workspace landing exactly as the payoff mock; dismissal suppresses permanently with Learning-page undo; every emitted card string passes the D3 rules; every §3 constraint demonstrably intact.
 
-**M6 — Palette + instrumentation.** §4.8, 4.9. *Done when:* export contains every metric and could be posted publicly; the demo-seed flag exercises the full flow on a clean profile.
+**M6 — Palette, API client, MCP layer, instrumentation.** §4.8, 4.9, 4.10. *Done when:* export contains every metric and could be posted publicly; the demo-seed flag exercises the full flow on a clean profile; the API client can fire and display a real request against one of the owner's actual SaaS tools; an external MCP client (Claude Code, in practice — this is the owner's own dogfooding tool during the build) can complete the §4.10 done-when checklist, screenshot and context tools included, with every call legible on the Learning page.
 
 **M7 — The sense-check fortnight.** No code. The owner daily-drives Sill for two weeks on real work. Then the five hypotheses get graded against §7's gates.
 
@@ -165,6 +188,16 @@ Strict order. Each ends at a stopping point: demonstrate the definition of done 
 
 ---
 
+---
+
 ## 9. What done looks like
 
 A single macOS app the owner opens on a Monday morning, signs into their real tools, works in all day, and, within days (history import having front-loaded the learning), receives a first quiet card that is *true*. They confirm it, name it, and watch a workspace assemble itself from their own habits. Two weeks later, the five hypotheses have honest grades, and the decision to pivot, build, or shelve is made on evidence rather than enthusiasm.
+
+---
+
+## 10. Roadmap direction (not this PoC): workspaces evolving around agents and SaaS efficiency
+
+If H1–H6 hold, the next phase's organising question changes from "does the browser notice useful things" to **"does the browser let an agent act on what it notices, legibly and on the user's terms."** That's rungs two through four of the delegation ladder discussed earlier (co-pilot on rails → do it while I watch → do it and show me), applied specifically to workspace routines rather than to browsing in general: a workspace that assembled itself from observed behaviour is also the natural unit an agent would be scoped to act within ("handle the Mornings routine" is a bounded, auditable request in a way "handle my browser" never could be).
+
+H6 in this PoC is the first, smallest brick in that direction: proving agent access can be exposed without breaking the trust model the whole product depends on. Nothing further is scoped here. The instinct behind "open claw" is correctly held at arm's length for now — the shudder is the right response until the trust infrastructure has been proven at rung one first, which is precisely what this PoC is for.
