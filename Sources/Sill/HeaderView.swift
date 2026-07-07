@@ -15,8 +15,8 @@ struct HeaderView: View {
     @State private var explanationShown = false
     @State private var annoyanceShown = false
     @State private var annoyanceLogged = false
-    @State private var showCopiedConfirmation = false
-    @State private var copiedConfirmationTask: Task<Void, Never>?
+    @State private var transientMessage: String?
+    @State private var transientMessageTask: Task<Void, Never>?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -31,14 +31,16 @@ struct HeaderView: View {
 
             readout
 
-            if showCopiedConfirmation {
-                Text("Copied")
+            if let transientMessage {
+                Text(transientMessage)
                     .font(Tokens.font(11.5))
                     .foregroundStyle(Tokens.inkGhost)
                     .transition(.opacity)
             }
 
             Spacer()
+
+            importAPIButton
 
             shareButton
 
@@ -51,21 +53,55 @@ struct HeaderView: View {
         .padding(.horizontal, 10)
         .padding(.top, 12)
         .padding(.bottom, 7)
-        .animation(.easeOut(duration: 0.15), value: showCopiedConfirmation)
+        .animation(.easeOut(duration: 0.15), value: transientMessage)
         .onReceive(NotificationCenter.default.publisher(for: .urlCopied)) { _ in
-            showCopiedConfirmation = true
-            copiedConfirmationTask?.cancel()
-            copiedConfirmationTask = Task {
-                try? await Task.sleep(for: .seconds(1.4))
-                guard !Task.isCancelled else { return }
-                showCopiedConfirmation = false
+            showTransient("Copied")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pageCaptured)) { _ in
+            showTransient("Saved to Desktop")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .downloadFinished)) { notification in
+            let filename = (notification.userInfo?["filename"] as? String) ?? "file"
+            showTransient("Downloaded \(filename)")
+        }
+    }
+
+    private func showTransient(_ message: String) {
+        transientMessage = message
+        transientMessageTask?.cancel()
+        transientMessageTask = Task {
+            try? await Task.sleep(for: .seconds(1.4))
+            guard !Task.isCancelled else { return }
+            transientMessage = nil
+        }
+    }
+
+    /// Shown only when the current tab is a raw OpenAPI/Swagger/Postman
+    /// Collection JSON file (WebKitDelegate detects this fresh on every
+    /// navigation) — a direct shortcut to the manual file/URL import already
+    /// in the API client, for the common case where you're already looking
+    /// right at the spec.
+    @ViewBuilder
+    private var importAPIButton: some View {
+        if let collection = store.selectedTab?.detectedAPICollection {
+            Button {
+                store.apiClient.importCollection(collection)
+                showTransient("Imported \"\(collection.name)\"")
+            } label: {
+                Image(systemName: "square.and.arrow.down.on.square")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(Tokens.accent)
+                    .frame(width: 24, height: 22)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .help("Import \"\(collection.name)\" into the API client")
         }
     }
 
     @ViewBuilder
     private var shareButton: some View {
-        if let url = store.selectedTab?.url {
+        if let tab = store.selectedTab, let url = tab.url, !tab.isAPIClientTab {
             ShareLink(item: url) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 10.5, weight: .medium))
@@ -152,7 +188,16 @@ struct HeaderView: View {
 
     @ViewBuilder
     private var readout: some View {
-        if let tab = store.selectedTab, let url = tab.url, let host = url.host() {
+        if let tab = store.selectedTab, tab.isAPIClientTab {
+            // No navigable URL to show or edit — the API client isn't a
+            // website. Not clickable: opening Go-To and submitting a URL
+            // here would otherwise overwrite `tab.url` away from `sill://`
+            // with no webview to load it into, stranding the tab blank.
+            Text("API Client")
+                .font(Tokens.font(12.5))
+                .foregroundStyle(Tokens.inkGhost)
+                .padding(.horizontal, 8)
+        } else if let tab = store.selectedTab, let url = tab.url, let host = url.host() {
             let state = tab.securityState
             HStack(spacing: 6) {
                 if state.isNegative {

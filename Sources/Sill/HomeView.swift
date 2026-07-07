@@ -2,7 +2,6 @@ import SwiftUI
 
 extension Notification.Name {
     static let openLearning = Notification.Name("sill.openLearning")
-    static let focusHomeField = Notification.Name("sill.focusHomeField")
 }
 
 /// Home (D2b): one evolving page across three temporal states — greeting,
@@ -59,9 +58,10 @@ struct HomeView: View {
         .background(Tokens.stage)
         .onAppear {
             store.patterns.refresh()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .focusHomeField)) { _ in
-            searchFocused = true
+            if store.focusRequestedTabID == tab.id {
+                searchFocused = true
+                store.focusRequestedTabID = nil
+            }
         }
     }
 

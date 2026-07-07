@@ -42,8 +42,7 @@ struct SillApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Tab") {
-                    store.newTab()
-                    NotificationCenter.default.post(name: .focusHomeField, object: nil)
+                    store.focusRequestedTabID = store.newTab().id
                 }
                 .keyboardShortcut("t", modifiers: .command)
 
@@ -148,6 +147,37 @@ struct SillApp: App {
                 .disabled(store.selectedTab?.url == nil)
             }
 
+            CommandMenu("Develop") {
+                Button("Show Web Inspector") {
+                    if store.selectedTab?.webView?.showInspector() != true {
+                        showInspectorFallbackAlert()
+                    }
+                }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .disabled(store.selectedTab?.webView == nil)
+
+                Divider()
+
+                Button("Capture Visible Area") {
+                    guard let webView = store.selectedTab?.webView else { return }
+                    Task { await PageCapture.captureVisibleArea(of: webView) }
+                }
+                .disabled(store.selectedTab?.webView == nil)
+
+                Button("Capture Full Page") {
+                    guard let webView = store.selectedTab?.webView else { return }
+                    Task { await PageCapture.captureFullPage(of: webView) }
+                }
+                .disabled(store.selectedTab?.webView == nil)
+
+                Divider()
+
+                Button("New API Client Tab") {
+                    store.newAPIClientTab()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+            }
+
             CommandMenu("Favorites") {
                 ForEach(Array(store.favorites.prefix(9).enumerated()), id: \.offset) { index, favorite in
                     Button(favorite.title.isEmpty ? (favorite.url.host() ?? "Favorite") : favorite.title) {
@@ -184,6 +214,20 @@ struct WindowConfigurator: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+/// `showInspector()`'s private-API attempt (DeveloperTools.swift) has no
+/// public fallback if WebKit ever renames the selectors it reaches for —
+/// rather than a menu item that silently does nothing when that happens,
+/// say so and point at the two paths that always work regardless of WebKit
+/// internals: right-click, or Safari's own system-wide Develop menu.
+@MainActor
+private func showInspectorFallbackAlert() {
+    let alert = NSAlert()
+    alert.messageText = "Couldn't open the inspector directly"
+    alert.informativeText = "Right-click anywhere on the page and choose \"Inspect Element\" — that always works. Or enable Safari's Develop menu (Safari > Settings > Advanced > \"Show features for web developers\"), which lists every inspectable app's tabs system-wide, Sill included."
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
 }
 
 /// Explicit user action only, per PRD §4.9: no URLs, titles, or individual

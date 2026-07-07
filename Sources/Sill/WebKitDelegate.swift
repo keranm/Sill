@@ -13,6 +13,29 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
         self.store = store
     }
 
+    /// Swagger UI exposes its own already-loaded spec URL via a stable,
+    /// documented Redux-style selector — reading that directly is far more
+    /// robust than trying to reverse-engineer wherever its config happens to
+    /// live (inline script, external bundle, query-string override, ...).
+    /// ReDoc's `<redoc>` custom element declares it as a plain attribute.
+    /// Postman-published doc pages aren't covered — no comparably reliable
+    /// signal for those was worth chasing for v1.
+    private static let apiSpecURLDiscoveryScript = """
+    (function () {
+      try {
+        if (window.ui && window.ui.specSelectors && window.ui.specSelectors.url) {
+          var url = window.ui.specSelectors.url();
+          if (url) return url;
+        }
+      } catch (e) {}
+      var redoc = document.querySelector('redoc');
+      if (redoc) {
+        return redoc.getAttribute('spec-url') || redoc.getAttribute('specUrl') || null;
+      }
+      return null;
+    })();
+    """
+
     // MARK: - Popups
 
     func webView(
@@ -129,6 +152,50 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
         guard let store, let tab = store.tab(for: webView) else { return }
         // Hibernation restore: put the page back where the user left it.
         tab.applyPendingScrollIfNeeded()
+
+        // developer-tools.md #3 collections: re-detected fresh on every
+        // navigation, since a JSON page is likely to be a spec file only
+        // some of the time this tab is used for anything at all.
+        tab.detectedAPICollection = nil
+        // Captured now so a slow detection from this navigation can't land
+        // after the user has already moved on and overwrite whatever the
+        // next (or a since-cleared) navigation set — checked again before
+        // every assignment below.
+        let detectionURL = webView.url
+        webView.evaluateJavaScript("document.contentType") { [weak tab, weak webView] result, _ in
+            guard let tab, let webView else { return }
+            if result as? String == "application/json" {
+                // JSONFormatting's WKUserScript may already have rewritten
+                // document.body for display by the time this runs, so it
+                // stashes the original text for exactly this reader rather
+                // than leaving it to be read back out of the mutated DOM.
+                webView.evaluateJavaScript("window.__sillRawJSON || (document.body ? document.body.textContent : '')") { body, _ in
+                    guard webView.url == detectionURL,
+                          let text = body as? String, let data = text.data(using: .utf8),
+                          let json = try? JSONSerialization.jsonObject(with: data) else { return }
+                    let name = webView.url?.deletingPathExtension().lastPathComponent ?? "Imported API"
+                    tab.detectedAPICollection = APISpecParser.detect(json, name: name, sourceURL: webView.url)
+                }
+            } else {
+                // Might be a rendered Swagger UI / ReDoc docs page rather
+                // than the raw spec — these are JS SPAs that need a moment
+                // to actually initialize before their spec URL is
+                // discoverable, hence the delay rather than checking
+                // immediately.
+                Task { @MainActor [weak tab, weak webView] in
+                    try? await Task.sleep(for: .milliseconds(800))
+                    guard let tab, let webView, webView.url == detectionURL,
+                          let discovered = try? await webView.evaluateJavaScript(Self.apiSpecURLDiscoveryScript) as? String,
+                          let specURL = URL(string: discovered, relativeTo: webView.url)?.absoluteURL else { return }
+                    guard let (data, response) = try? await URLSession.shared.data(from: specURL),
+                          (response as? HTTPURLResponse)?.statusCode == 200,
+                          let json = try? JSONSerialization.jsonObject(with: data),
+                          webView.url == detectionURL else { return }
+                    let name = webView.url?.host() ?? "Imported API"
+                    tab.detectedAPICollection = APISpecParser.detect(json, name: name, sourceURL: specURL)
+                }
+            }
+        }
 
         // The one place live visits are observed (metadata only, consent-gated,
         // exclusions inside recordVisit — excluded sites leave nothing at all).

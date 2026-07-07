@@ -256,7 +256,7 @@ struct RailView: View {
                             ? { store.resetPinnedTab(tab) }
                             : nil,
                         addFavorite: {
-                            guard let url = tab.url else { return }
+                            guard let url = tab.url, !tab.isAPIClientTab else { return }
                             store.addFavorite(title: tab.title, url: url, sourceTab: tab)
                         }
                     )
@@ -354,8 +354,7 @@ struct RailView: View {
                 }
 
                 Button {
-                    store.newTab()
-                    NotificationCenter.default.post(name: .focusHomeField, object: nil)
+                    store.focusRequestedTabID = store.newTab().id
                 } label: {
                     HStack(spacing: 7) {
                         Image(systemName: "plus")
@@ -689,7 +688,7 @@ private struct TabRow: View {
         .contextMenu {
             if let pin {
                 Button("Pin Tab") { pin() }
-                    .disabled(tab.url == nil)
+                    .disabled(tab.url == nil || tab.isAPIClientTab)
             }
             if let resetToPinned {
                 Button("Reset Tab") { resetToPinned() }
@@ -699,7 +698,7 @@ private struct TabRow: View {
             }
             if let addFavorite {
                 Button("Add to Favorites") { addFavorite() }
-                    .disabled(tab.url == nil)
+                    .disabled(tab.url == nil || tab.isAPIClientTab)
             }
             if unpin == nil {
                 Button("Close Tab") { close() }

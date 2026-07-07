@@ -31,7 +31,13 @@ struct GlyphView: View {
     var cornerRadius: CGFloat = 3.5
 
     var body: some View {
-        if let image = FaviconStore.shared.image(for: url) {
+        if url?.scheme == "sill" {
+            Image(systemName: "curlybraces")
+                .font(.system(size: size * 0.6, weight: .semibold))
+                .foregroundStyle(Tokens.accent)
+                .frame(width: size, height: size)
+                .background(RoundedRectangle(cornerRadius: cornerRadius).fill(Tokens.accent.opacity(0.12)))
+        } else if let image = FaviconStore.shared.image(for: url) {
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

@@ -32,6 +32,10 @@ final class BrowserTab: Identifiable {
     var panelPartnerID: BrowserTab.ID?
     var panelIsLeft: Bool
     var panelSplitRatio: CGFloat
+    /// Set when this tab is currently showing a raw OpenAPI/Swagger/Postman
+    /// Collection JSON file — session-only, never persisted, just drives the
+    /// header's "Import API" affordance. Re-detected fresh on every navigation.
+    var detectedAPICollection: APICollection?
     /// Set by the navigation delegate on TLS/cert failure; drives the interstitial.
     var certificateFailure: (host: String, reason: String)?
     /// Transition typing for observation: "typed" when the load came from our
@@ -39,7 +43,18 @@ final class BrowserTab: Identifiable {
     @ObservationIgnored var transitionHint: String?
     @ObservationIgnored var lastNavigationType: String = "other"
 
-    var isMaterialized: Bool { webView != nil }
+    /// A `sill://` internal tab (the API client) is never backed by a
+    /// webview and never needs to be — pretending it's always already
+    /// materialized makes every existing materialize/dehydrate call site
+    /// naturally skip it (guard !isMaterialized else return) with no
+    /// special-casing anywhere else.
+    var isMaterialized: Bool { webView != nil || isAPIClientTab }
+
+    /// True for the `sill://api-client` pseudo-tab: no navigable URL to
+    /// share, favorite, pin as a website bookmark, or overwrite via the
+    /// address bar — every call site that treats a tab as an ordinary web
+    /// page needs to exclude this one.
+    var isAPIClientTab: Bool { url?.scheme == "sill" }
 
     @ObservationIgnored private let onStateChange: () -> Void
     @ObservationIgnored private var observers: [NSKeyValueObservation] = []

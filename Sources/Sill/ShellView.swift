@@ -74,7 +74,10 @@ struct ShellView: View {
             if learningShown {
                 LearningPageView(store: store) { learningShown = false }
             } else if let tab = store.selectedTab {
-                if let partner = store.panelPartner(of: tab) {
+                if tab.isAPIClientTab {
+                    APIClientView(store: store, tab: tab)
+                        .id(tab.id)
+                } else if let partner = store.panelPartner(of: tab) {
                     PanelSplitView(store: store, leftTab: tab.panelIsLeft ? tab : partner, rightTab: tab.panelIsLeft ? partner : tab)
                         .id(tab.panelIsLeft ? tab.id : partner.id)
                         .transition(.opacity)
@@ -90,6 +93,7 @@ struct ShellView: View {
                         .id(tab.id)
                 } else {
                     HomeView(store: store, tab: tab)
+                        .id(tab.id)
                 }
             } else {
                 Tokens.stage
@@ -113,7 +117,9 @@ struct ShellView: View {
     /// mouse-up safety net in RailView.
     @ViewBuilder
     private var panelDropTarget: some View {
-        if let draggingID = store.dragState.draggingTabID, let tab = store.selectedTab, tab.panelPartnerID == nil, draggingID != tab.id {
+        if let draggingID = store.dragState.draggingTabID, let tab = store.selectedTab,
+           tab.panelPartnerID == nil, draggingID != tab.id, !tab.isAPIClientTab,
+           store.tabs.first(where: { $0.id == draggingID })?.isAPIClientTab != true {
             GeometryReader { geo in
                 RoundedRectangle(cornerRadius: Tokens.radiusStage)
                     .fill(panelDropTargeted ? Tokens.accentWash : .clear)

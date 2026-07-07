@@ -192,7 +192,7 @@ struct PaletteOverlay: View {
         }
 
         let actions: [(String, String?, () -> Void)] = [
-            ("New tab", "⌘T", { store.newTab(); NotificationCenter.default.post(name: .focusHomeField, object: nil) }),
+            ("New tab", "⌘T", { store.focusRequestedTabID = store.newTab().id }),
             ("New workspace…", "⌘⇧N", { NotificationCenter.default.post(name: .newWorkspace, object: nil) }),
             ("Open Learning page", "⌘⇧L", { NotificationCenter.default.post(name: .openLearning, object: nil) }),
             ("Import browsing history…", nil, { NotificationCenter.default.post(name: .openImport, object: nil) }),

@@ -9,7 +9,7 @@
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>app.sill.poc</string>
+	<string>app.sill</string>
 	<key>CFBundleName</key>
 	<string>Sill</string>
 	<key>CFBundlePackageType</key>

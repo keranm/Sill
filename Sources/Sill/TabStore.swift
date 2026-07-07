@@ -34,6 +34,13 @@ final class TabStore {
     /// the global Cmd-W command can dismiss it instead of closing a tab.
     var glanceURL: URL?
 
+    /// Set right after creating a tab that should land on Home with the
+    /// search field already focused (⌘T, the rail's "+ New tab"). Checked by
+    /// HomeView's own `.onAppear` — the moment it actually mounts, not a
+    /// fire-and-forget notification that can be posted before the new tab's
+    /// view exists yet to hear it.
+    var focusRequestedTabID: BrowserTab.ID?
+
     /// Cross-view drag-and-drop UI state (rail reordering, and the stage's
     /// Panel-view drop target both need it) — lives here, not as view-local
     /// @State, since RailView and ShellView are siblings.
@@ -45,6 +52,7 @@ final class TabStore {
     @ObservationIgnored private let contentBlocker = ContentBlocker()
     private(set) var observations: ObservationStore!
     private(set) var patterns: PatternStore!
+    private(set) var apiClient: APIClientStore!
 
     /// The payoff moment after confirming a card (D2c): quietly momentous,
     /// a settled room, no confetti.
@@ -61,6 +69,7 @@ final class TabStore {
             try createSchema()
             migrateColumns()
             observations = ObservationStore(db: db)
+            apiClient = APIClientStore(db: db)
             try loadWorkspaces()
             try loadFavorites()
             migrateLegacySessionIfNeeded()
@@ -324,12 +333,15 @@ final class TabStore {
     /// on the left half of the stage puts the dragged-in tab on the left and
     /// pushes the current page right, and vice versa, rather than always
     /// defaulting to one fixed side. Declines if either side is already
-    /// paneled (no 3-way splits yet) or they're the same tab.
+    /// paneled (no 3-way splits yet), they're the same tab, or either side
+    /// is the API client (deliberately not Panel-view-able).
     func formPanel(with dragged: BrowserTab, draggedOnLeft: Bool) {
         guard let current = selectedTab,
               current.id != dragged.id,
               current.panelPartnerID == nil,
-              dragged.panelPartnerID == nil else { return }
+              dragged.panelPartnerID == nil,
+              !current.isAPIClientTab,
+              !dragged.isAPIClientTab else { return }
         current.panelPartnerID = dragged.id
         dragged.panelPartnerID = current.id
         current.panelIsLeft = !draggedOnLeft
@@ -406,6 +418,11 @@ final class TabStore {
         webView.uiDelegate = webKitDelegate
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
+        // Developer tooling commitment (developer-tools.md #1): Safari's own
+        // Web Inspector, always on, no custom build. Right-click "Inspect
+        // Element" comes free from WebKit once this is set.
+        webView.isInspectable = true
+        JSONFormatting.attach(to: webView.configuration.userContentController)
         return webView
     }
 
@@ -545,6 +562,24 @@ final class TabStore {
         return tab
     }
 
+    /// developer-tools.md #3's API client, as an ordinary tab — a `BrowserTab`
+    /// with the internal `sill://` scheme instead of a real webpage.
+    /// `isMaterialized` already treats this scheme as always-materialized
+    /// (BrowserTab.swift), so no webview is ever created for it.
+    @discardableResult
+    func newAPIClientTab(select: Bool = true) -> BrowserTab {
+        let tab = BrowserTab(url: URL(string: "sill://api-client"), title: "API Client") { [weak self] in
+            self?.persistSession()
+        }
+        let workspace = activeWorkspace
+        workspace.tabs.append(tab)
+        if select {
+            workspace.selectedTabID = tab.id
+        }
+        persistSession()
+        return tab
+    }
+
     /// Closing a paneled tab closes its partner too — a Panel is one unit to
     /// close, even though every call site (Cmd-W, the merged row's single X)
     /// just closes "the tab" without needing to know panels exist. Un-pairs
@@ -566,6 +601,9 @@ final class TabStore {
     private func closeTabIndividually(_ tab: BrowserTab) {
         guard let workspace = workspace(containing: tab),
               let index = workspace.tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+        if tab.isAPIClientTab {
+            apiClient.removeDraftState(for: tab.id)
+        }
         workspace.tabs.remove(at: index)
         Task { await tab.dehydrate() }
         let openerID = openerByTabID.removeValue(forKey: tab.id)
@@ -746,6 +784,15 @@ final class TabStore {
     // MARK: - Navigation input
 
     func navigate(_ input: String, in tab: BrowserTab) {
+        // The API client tab has no webview to load into — `tab.load` would
+        // silently overwrite its `sill://` URL with the typed destination,
+        // stranding it with neither the client nor a live page (issue found
+        // in review, before this guard existed). Open the destination
+        // elsewhere instead of destroying the tab.
+        guard !tab.isAPIClientTab else {
+            openInNewTab(input)
+            return
+        }
         if let destination = Self.destination(for: input) {
             materialize(tab)
             tab.transitionHint = "typed"

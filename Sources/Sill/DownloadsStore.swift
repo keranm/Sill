@@ -2,6 +2,10 @@ import Foundation
 import WebKit
 import Observation
 
+extension Notification.Name {
+    static let downloadFinished = Notification.Name("sill.downloadFinished")
+}
+
 /// Tracks WKDownloads into ~/Downloads. Listed at the foot of the rail (D2a).
 @MainActor
 @Observable
@@ -76,8 +80,13 @@ extension DownloadsStore: WKDownloadDelegate {
     }
 
     func downloadDidFinish(_ download: WKDownload) {
-        item(for: download).state = .finished
+        let item = item(for: download)
+        item.state = .finished
         release(download)
+        // The rail's "Downloads" count badge is the only other signal a
+        // download happened at all — easy to miss entirely, same family of
+        // gap as the header's existing "Copied"/"Saved to Desktop" toasts.
+        NotificationCenter.default.post(name: .downloadFinished, object: nil, userInfo: ["filename": item.filename])
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
