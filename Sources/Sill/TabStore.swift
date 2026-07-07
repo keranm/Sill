@@ -25,6 +25,23 @@ final class TabStore {
     /// Global, workspace-independent — reachable from every workspace.
     private(set) var favorites: [Favorite] = []
 
+    /// The one shared, workspace-independent tab backing each Favorite —
+    /// created lazily on first open, then kept alive for the rest of the
+    /// run (never dehydrated, since it never belongs to any `Workspace.tabs`
+    /// for `switchWorkspace`'s hibernation loop to find). This is the actual
+    /// fix for favorites drifting into different states per workspace: there
+    /// used to be one independent `BrowserTab` per workspace that had ever
+    /// opened this favorite, each free to navigate away on its own. Now
+    /// there's exactly one, same object no matter which workspace is active.
+    private(set) var favoriteTabs: [Favorite.ID: BrowserTab] = [:]
+
+    /// Non-nil while a Favorite's shared tab is what's actually on stage,
+    /// overriding the active workspace's own selection. Cleared by selecting
+    /// any ordinary tab or switching workspace — both are "I'm looking at
+    /// this workspace's own tabs now," which a favorite (by definition
+    /// workspace-independent) isn't part of.
+    var selectedFavoriteID: Favorite.ID?
+
     /// "Research, as you left it — 12 tabs" (D2a restore transition).
     private(set) var restoreBanner: String?
 
@@ -333,15 +350,20 @@ final class TabStore {
     /// on the left half of the stage puts the dragged-in tab on the left and
     /// pushes the current page right, and vice versa, rather than always
     /// defaulting to one fixed side. Declines if either side is already
-    /// paneled (no 3-way splits yet), they're the same tab, or either side
-    /// is the API client (deliberately not Panel-view-able).
+    /// paneled (no 3-way splits yet), they're the same tab, either side is
+    /// the API client, or either side is a Favorite's shared tab — pairing a
+    /// tab that follows the user across every workspace with one that
+    /// belongs to just this workspace would leave a dangling partner
+    /// reference the moment the workspace changes.
     func formPanel(with dragged: BrowserTab, draggedOnLeft: Bool) {
         guard let current = selectedTab,
               current.id != dragged.id,
               current.panelPartnerID == nil,
               dragged.panelPartnerID == nil,
               !current.isAPIClientTab,
-              !dragged.isAPIClientTab else { return }
+              !dragged.isAPIClientTab,
+              !isFavoriteTab(current),
+              !isFavoriteTab(dragged) else { return }
         current.panelPartnerID = dragged.id
         dragged.panelPartnerID = current.id
         current.panelIsLeft = !draggedOnLeft
@@ -371,6 +393,7 @@ final class TabStore {
     /// has no rail row for an `isSelected`/highlight check to match against.
     var selectedTabID: BrowserTab.ID? {
         get {
+            guard selectedFavoriteID == nil else { return nil }
             guard let raw = activeWorkspace.selectedTabID,
                   let tab = activeWorkspace.tabs.first(where: { $0.id == raw }) else { return activeWorkspace.selectedTabID }
             if isPanelFollower(tab), let partner = panelPartner(of: tab, in: activeWorkspace) {
@@ -379,6 +402,7 @@ final class TabStore {
             return raw
         }
         set {
+            selectedFavoriteID = nil
             activeWorkspace.selectedTabID = newValue
             if let tab = activeWorkspace.selectedTab {
                 if !tab.isMaterialized {
@@ -393,6 +417,9 @@ final class TabStore {
     }
 
     var selectedTab: BrowserTab? {
+        if let selectedFavoriteID {
+            return favoriteTabs[selectedFavoriteID]
+        }
         guard let id = selectedTabID else { return nil }
         return activeWorkspace.tabs.first { $0.id == id }
     }
@@ -495,6 +522,10 @@ final class TabStore {
         guard id != activeWorkspaceID,
               let arriving = workspaces.first(where: { $0.id == id }) else { return }
         let departing = activeWorkspace
+        // A Favorite's shared tab isn't part of any workspace — switching
+        // away from it is switching away from favorites entirely, back to
+        // whichever workspace tab was last selected there.
+        selectedFavoriteID = nil
 
         persistTabs(of: departing)
         for tab in departing.tabs {
@@ -727,42 +758,52 @@ final class TabStore {
         }
     }
 
-    /// Removing a favorite fully demotes any tab it was backing (still
-    /// pinned, just hidden from the rail while the chip stood in for it)
-    /// back to an ordinary Tabs-stack tab — it must not stay stranded as an
-    /// invisible pinned tab, and it must not close. Favorites are reachable
-    /// from every workspace, so the backing tab can live in a dormant one —
-    /// searches all of them and persists whichever workspace actually
-    /// changed, not just `activeWorkspace` (which `unpin(_:)` assumes).
+    /// The shared tab currently backing a favorite, if it's ever been opened
+    /// this run — `nil` means nobody's clicked this favorite chip yet.
+    func backingTab(for favorite: Favorite) -> BrowserTab? {
+        favoriteTabs[favorite.id]
+    }
+
+    private func isFavoriteTab(_ tab: BrowserTab) -> Bool {
+        favoriteTabs.values.contains { $0.id == tab.id }
+    }
+
+    /// Removing a favorite demotes its shared tab (if it was ever opened)
+    /// back into an ordinary Tabs-stack tab in the *current* workspace — it
+    /// must not stay stranded with no workspace at all, and it must not
+    /// close. If it was what's currently on stage, selection moves to it in
+    /// its new, ordinary home rather than leaving the stage blank.
     func removeFavorite(_ favorite: Favorite) {
         favorites.removeAll { $0.id == favorite.id }
         persistFavorites()
-        let domain = DisplayNames.observationDomain(for: favorite.url.host() ?? favorite.url.absoluteString)
-        for workspace in workspaces {
-            if let backingTab = workspace.tabs.first(where: { $0.pinnedHomeDomain == domain }) {
-                backingTab.unpin()
-                persistTabs(of: workspace)
-                break
-            }
+        guard let tab = favoriteTabs.removeValue(forKey: favorite.id) else { return }
+        tab.unpin()
+        activeWorkspace.tabs.append(tab)
+        persistTabs(of: activeWorkspace)
+        if selectedFavoriteID == favorite.id {
+            selectedTabID = tab.id
         }
     }
 
-    /// Favorites act like a Dock icon: focus the tab already anchored to that
-    /// domain in this workspace if there is one, otherwise open it fresh —
-    /// pinned, so outbound links open in Quick Look rather than replacing it.
+    /// Favorites act like a Dock icon: the same shared tab regardless of
+    /// which workspace is active, created lazily on first open and kept
+    /// alive (never dehydrated — it never belongs to any workspace's `tabs`
+    /// for `switchWorkspace`'s hibernation loop to find) for the rest of the
+    /// run. Pinned, so outbound links open in Quick Look rather than
+    /// replacing it.
     func openFavorite(_ favorite: Favorite) {
-        let domain = DisplayNames.observationDomain(for: favorite.url.host() ?? favorite.url.absoluteString)
-        if let existing = activeWorkspace.tabs.first(where: { $0.pinnedHomeDomain == domain }) {
-            selectedTabID = existing.id
+        if let existing = favoriteTabs[favorite.id] {
+            materialize(existing)
+            selectedFavoriteID = favorite.id
             return
         }
         let tab = BrowserTab(url: favorite.url, title: favorite.title) { [weak self] in
             self?.persistSession()
         }
-        activeWorkspace.tabs.append(tab)
+        favoriteTabs[favorite.id] = tab
         materialize(tab)
         tab.pin()
-        selectedTabID = tab.id
+        selectedFavoriteID = favorite.id
         observations.recordTabEvent(kind: "tab_open", workspaceID: activeWorkspace.id.uuidString)
     }
 
