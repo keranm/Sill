@@ -303,5 +303,28 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.1/sill.zip" length="3252498" type="application/octet-stream" sparkle:edSignature="f1t0pVCN8JIkJLfCoazH/1WmoM9AtOSe2XQhUzEqu77i3ZDjoynn0HbbWbuqTe0aY5v6n4kRDTUerZMNe3k2Aw==" />
     </item>
+    <item>
+      <title>Version 0.3.2</title>
+      <pubDate>Wed, 08 Jul 2026 06:48:20 +0000</pubDate>
+      <sparkle:version>202607080647</sparkle:version>
+      <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>Two right-click improvements, one brand new and one back from the dead.</p>
+<ul>
+  <li><b>Open in API Client</b>: right-click any link and send it straight to the API client, prefilled as a GET and ready to fire. If the link is an OpenAPI, Swagger, or Postman spec (think <code>swagger.json</code>), it's imported as a browsable collection at the same time — the whole API, one right-click away.</li>
+  <li><b>Inspect Element is back</b>: it had quietly vanished from the right-click menu for the same underlying reason the Develop menu's inspector broke in 0.3.0 — WebKit wants an extra developer flag flipped, and now it's flipped for every page from the start.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  One click on a link —<br>
+  twenty endpoints, shelved and named,<br>
+  waiting to be sent.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.3.1...v0.3.2">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.2/sill.zip" length="3255259" type="application/octet-stream" sparkle:edSignature="AVE398QTcZKY0HLv3CzMnHhi3LehIDp5TRH3wHbDbfUe0Ufryxk8KFCPWkhFYnPLNCGn6BAvcnap4QvAV5qbCA==" />
+    </item>
   </channel>
 </rss>
