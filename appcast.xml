@@ -255,5 +255,31 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.2.0/sill.zip" length="2987032" type="application/octet-stream" sparkle:edSignature="fOpPJiCpKmGbJjRBcd2MxnfwMi0WoBFs/tMZPKmGf4NhTaDM13MzG7MrWoW18P6L7sieLL1aHU4bG8iVvx/KAA==" />
     </item>
+    <item>
+      <title>Version 0.3.0</title>
+      <pubDate>Wed, 08 Jul 2026 06:09:35 +0000</pubDate>
+      <sparkle:version>202607080608</sparkle:version>
+      <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>Sill now speaks MCP. If you're building with — or for — the Model Context Protocol, there's a new explorer in the Develop menu that treats MCP servers the way the API client treats REST APIs: point it at one, see everything it offers, try it out.</p>
+<ul>
+  <li><b>MCP Explorer</b> (Develop &rarr; New MCP Explorer Tab, &#8997;&#8984;M): connect to any MCP server and browse everything it exposes — tools, resources, and prompts — then invoke any of them right there.</li>
+  <li><b>Local or remote</b>: launch a local server by command (<code>npx &hellip;</code> works exactly as it does in your terminal) or connect to a remote one over HTTP. Saved servers stick around between sessions.</li>
+  <li><b>Forms from schemas</b>: each tool's arguments become a real form generated from the tool's own schema — typed fields, dropdowns for enums, and an edit-as-JSON escape hatch — with results rendered in the same collapsible JSON tree as the API client.</li>
+  <li><b>A live server log</b>: everything your server prints to stderr streams into a log pane at the bottom — exactly where you want it when the server you're debugging is your own.</li>
+  <li><b>Send Feedback</b>: found something weird? Help &rarr; Send Feedback&hellip; opens the feedback form right in a tab. Every submission is read.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  Ask a quiet host<br>
+  what it keeps behind the door —<br>
+  tools laid on the sill.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.2.0...v0.3.0">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.0/sill.zip" length="3252258" type="application/octet-stream" sparkle:edSignature="m3ov4P8v2L3j9Emk1LXTWkIgv+4gG8NYmT6i03B/TqSESoOR6YCBB1a1311dllgA08HcOftc/SHYanV0MY8WAg==" />
+    </item>
   </channel>
 </rss>
