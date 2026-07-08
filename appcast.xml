@@ -281,5 +281,27 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.0/sill.zip" length="3252258" type="application/octet-stream" sparkle:edSignature="m3ov4P8v2L3j9Emk1LXTWkIgv+4gG8NYmT6i03B/TqSESoOR6YCBB1a1311dllgA08HcOftc/SHYanV0MY8WAg==" />
     </item>
+    <item>
+      <title>Version 0.3.1</title>
+      <pubDate>Wed, 08 Jul 2026 06:37:04 +0000</pubDate>
+      <sparkle:version>202607080636</sparkle:version>
+      <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>A small, fast fix on the heels of this morning's 0.3.0.</p>
+<ul>
+  <li><b>Show Web Inspector works again</b>: Develop &rarr; Show Web Inspector (&#8997;&#8984;I) had started silently doing nothing — WebKit quietly wants an extra developer flag switched on before it will open the inspector programmatically, and now Sill switches it on for you. Right-click &rarr; Inspect Element was never affected.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  The switch looked flipped —<br>
+  one more, hidden in the wall.<br>
+  Now the light comes on.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.3.0...v0.3.1">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.1/sill.zip" length="3252498" type="application/octet-stream" sparkle:edSignature="f1t0pVCN8JIkJLfCoazH/1WmoM9AtOSe2XQhUzEqu77i3ZDjoynn0HbbWbuqTe0aY5v6n4kRDTUerZMNe3k2Aw==" />
+    </item>
   </channel>
 </rss>
