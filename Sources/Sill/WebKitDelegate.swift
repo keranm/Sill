@@ -139,6 +139,21 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
             item.target = action
             item.action = #selector(MenuDownloadAction.fire(_:))
         }
+
+        // "Open in API Client" on any right-clicked link — a spec link
+        // (swagger.json and friends) imports as a collection, anything else
+        // lands prefilled as a GET, via TabStore.openInAPIClient.
+        if let linkURL {
+            let openItem = NSMenuItem(title: "Open in API Client", action: #selector(MenuDownloadAction.fire(_:)), keyEquivalent: "")
+            let action = MenuDownloadAction { [weak self] in
+                self?.store?.openInAPIClient(url: linkURL)
+            }
+            openItem.representedObject = action
+            openItem.target = action
+            // Sits with the other link actions, right after Copy Link.
+            let copyLinkIndex = menu.items.firstIndex { $0.identifier?.rawValue == "WKMenuItemIdentifierCopyLink" }
+            menu.insertItem(openItem, at: copyLinkIndex.map { $0 + 1 } ?? menu.items.count)
+        }
         completionHandler(menu)
     }
 

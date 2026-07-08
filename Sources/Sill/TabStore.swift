@@ -448,9 +448,17 @@ final class TabStore {
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
         // Developer tooling commitment (developer-tools.md #1): Safari's own
-        // Web Inspector, always on, no custom build. Right-click "Inspect
-        // Element" comes free from WebKit once this is set.
+        // Web Inspector, always on, no custom build. `isInspectable` used to
+        // be the whole story, but the context menu's "Inspect Element" (and
+        // the programmatic show() in DeveloperTools.swift) turned out to
+        // also gate on WebKit's older private developer-extras preference —
+        // without it, the menu item simply doesn't appear. Same guarded
+        // private-API risk tier as _inspector itself.
         webView.isInspectable = true
+        let preferences = webView.configuration.preferences
+        if preferences.responds(to: NSSelectorFromString("_setDeveloperExtrasEnabled:")) {
+            preferences.setValue(true, forKey: "developerExtrasEnabled")
+        }
         JSONFormatting.attach(to: webView.configuration.userContentController)
         return webView
     }
@@ -611,6 +619,29 @@ final class TabStore {
         }
         persistSession()
         return tab
+    }
+
+    /// Right-click → "Open in API Client": a new API client tab with the
+    /// link prefilled as a GET, ready to send. If the URL turns out to be
+    /// an OpenAPI/Swagger/Postman spec, it's also imported as a browsable
+    /// collection — the same `APISpecParser.detect` path the header's
+    /// import button and the sidebar's Import URL… already use.
+    func openInAPIClient(url: URL) {
+        let tab = newAPIClientTab()
+        // A fresh API client tab seeds its first request tab with the
+        // browser tab's own id (see APIClientStore.requestTabsState), so
+        // this draft is the one on screen.
+        let draft = apiClient.draftState(for: tab.id)
+        draft.method = "GET"
+        draft.urlText = url.absoluteString
+        apiClient.scheduleDraftPersist(tabID: tab.id, draft: draft)
+
+        Task { [weak self] in
+            guard let (data, _) = try? await URLSession.shared.data(from: url),
+                  let json = try? JSONSerialization.jsonObject(with: data),
+                  let collection = APISpecParser.detect(json, name: url.deletingPathExtension().lastPathComponent, sourceURL: url) else { return }
+            self?.apiClient.importCollection(collection)
+        }
     }
 
     /// The MCP explorer, the API client's sibling — same `sill://` internal-tab
