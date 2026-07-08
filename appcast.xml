@@ -228,5 +228,32 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.1.14/sill.zip" length="2886993" type="application/octet-stream" sparkle:edSignature="Pdz2enO11z4T3E7NuEdNtycr1a5e1tNLJDWaCesaMyLeQSJ557A+A9NUsxGlY91Dz5FoL1GBay4mijSpj/vaCg==" />
     </item>
+    <item>
+      <title>Version 0.2.0</title>
+      <pubDate>Wed, 08 Jul 2026 01:10:23 +0000</pubDate>
+      <sparkle:version>202607080109</sparkle:version>
+      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>The API client got a proper workout this week — it's now much closer to a lightweight Postman than a form you fill in and hope.</p>
+<ul>
+  <li><b>Environments &amp; Collections have a permanent home</b>: a real sidebar instead of a hidden popover, with collections browsable by URL structure instead of a flat list.</li>
+  <li><b>{variables} actually work, and show it</b>: reference one anywhere — URL, headers, body — and it colour-codes live: green if it resolves, red if it's a typo, teal for built-ins like {$timestamp}.</li>
+  <li><b>Computed variables for signed APIs</b>: build an MD5/SHA1/SHA256/HMAC signature right inside a variable's value, using the current timestamp, the request path, or anything else you reference — no more hand-computing hashes to talk to APIs that require one.</li>
+  <li><b>See exactly what was sent</b>: a resolved Request panel sits next to the Response, so a signature or token substitution can be checked by eye instead of guessed at.</li>
+  <li><b>Multiple request tabs</b> in one API client tab, so testing several endpoints doesn't mean overwriting the same draft — and everything (headers, URL, body, chosen environment) now survives quitting and reopening Sill.</li>
+  <li><b>Copy anything out of a JSON response</b> straight into a variable, and header names/values (Content-Type, Authorization, and the usual suspects) autocomplete as you type.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  A name in braces —<br>
+  red until it finds a home,<br>
+  green when it belongs.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.1.14...v0.2.0">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.2.0/sill.zip" length="2987032" type="application/octet-stream" sparkle:edSignature="fOpPJiCpKmGbJjRBcd2MxnfwMi0WoBFs/tMZPKmGf4NhTaDM13MzG7MrWoW18P6L7sieLL1aHU4bG8iVvx/KAA==" />
+    </item>
   </channel>
 </rss>
