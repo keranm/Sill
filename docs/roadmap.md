@@ -10,8 +10,8 @@ never got built.
 
 Shipped: shell, workspaces + hibernation, consent + cross-browser history
 import, the deterministic learning engine, suggestion cards + Learning page,
-command palette, DevTools (Inspector, page capture, API Client, JSON
-formatting), Quick Look, Pinned Tabs, Favorites, Glance, Panel view,
+command palette, DevTools (Inspector, page capture, API Client, MCP Explorer,
+JSON formatting), Quick Look, Pinned Tabs, Favorites, Glance, Panel view,
 drag-and-drop tab management. Bundle id is `app.sill`.
 
 ---
@@ -40,7 +40,10 @@ drag-and-drop tab management. Bundle id is `app.sill`.
   the Learning page under an "Agent activity" heading, in the same voice as
   the browser's own observations. Page capture itself (the toolbar feature)
   already shipped — the MCP server that would expose it to an external agent
-  has not. Fully unbuilt; untouched since it was proposed.
+  has not. Fully unbuilt; untouched since it was proposed. (Not to be
+  confused with the MCP *Explorer* in the Develop menu, shipped 2026-07-08:
+  that's Sill as an MCP client for exploring other people's servers —
+  `developer-tools.md` #5. This item is the reverse direction.)
 - **Dark mode.** Deliberately deferred (light-mode-first was the PoC's
   explicit simplification, not an oversight) — tokens were built with dark
   values mirrored in from day one specifically so this is cheap whenever it

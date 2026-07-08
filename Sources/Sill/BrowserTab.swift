@@ -48,18 +48,24 @@ final class BrowserTab: Identifiable {
     @ObservationIgnored var transitionHint: String?
     @ObservationIgnored var lastNavigationType: String = "other"
 
-    /// A `sill://` internal tab (the API client) is never backed by a
-    /// webview and never needs to be — pretending it's always already
-    /// materialized makes every existing materialize/dehydrate call site
-    /// naturally skip it (guard !isMaterialized else return) with no
+    /// A `sill://` internal tab (the API client, the MCP explorer) is never
+    /// backed by a webview and never needs to be — pretending it's always
+    /// already materialized makes every existing materialize/dehydrate call
+    /// site naturally skip it (guard !isMaterialized else return) with no
     /// special-casing anywhere else.
-    var isMaterialized: Bool { webView != nil || isAPIClientTab }
+    var isMaterialized: Bool { webView != nil || isInternalTab }
 
-    /// True for the `sill://api-client` pseudo-tab: no navigable URL to
-    /// share, favorite, pin as a website bookmark, or overwrite via the
-    /// address bar — every call site that treats a tab as an ordinary web
-    /// page needs to exclude this one.
-    var isAPIClientTab: Bool { url?.scheme == "sill" }
+    /// True for any `sill://` pseudo-tab: no navigable URL to share,
+    /// favorite, pin as a website bookmark, or overwrite via the address
+    /// bar — every call site that treats a tab as an ordinary web page
+    /// needs to exclude these. Which internal surface the tab actually is
+    /// (`isAPIClientTab`/`isMCPClientTab`) only matters to ShellView's
+    /// routing, the header readout, and per-store close cleanup.
+    var isInternalTab: Bool { url?.scheme == "sill" }
+
+    var isAPIClientTab: Bool { isInternalTab && url?.host() == "api-client" }
+
+    var isMCPClientTab: Bool { isInternalTab && url?.host() == "mcp-client" }
 
     @ObservationIgnored private let onStateChange: () -> Void
     @ObservationIgnored private var observers: [NSKeyValueObservation] = []

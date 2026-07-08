@@ -74,7 +74,10 @@ struct ShellView: View {
             if learningShown {
                 LearningPageView(store: store) { learningShown = false }
             } else if let tab = store.selectedTab {
-                if tab.isAPIClientTab {
+                if tab.isMCPClientTab {
+                    MCPClientView(store: store, tab: tab)
+                        .id(tab.id)
+                } else if tab.isAPIClientTab {
                     APIClientView(store: store, tab: tab)
                         .id(tab.id)
                 } else if let partner = store.panelPartner(of: tab) {
@@ -118,8 +121,8 @@ struct ShellView: View {
     @ViewBuilder
     private var panelDropTarget: some View {
         if let draggingID = store.dragState.draggingTabID, let tab = store.selectedTab,
-           tab.panelPartnerID == nil, draggingID != tab.id, !tab.isAPIClientTab,
-           store.tabs.first(where: { $0.id == draggingID })?.isAPIClientTab != true {
+           tab.panelPartnerID == nil, draggingID != tab.id, !tab.isInternalTab,
+           store.tabs.first(where: { $0.id == draggingID })?.isInternalTab != true {
             GeometryReader { geo in
                 RoundedRectangle(cornerRadius: Tokens.radiusStage)
                     .fill(panelDropTargeted ? Tokens.accentWash : .clear)

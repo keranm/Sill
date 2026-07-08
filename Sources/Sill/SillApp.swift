@@ -116,6 +116,12 @@ struct SillApp: App {
                 }
             }
 
+            CommandGroup(after: .help) {
+                Button("Send Feedback…") {
+                    store.newTab(url: URL(string: "https://keranmckenzie.com/feedback/"))
+                }
+            }
+
             CommandGroup(after: .toolbar) {
                 Button("Open Location") {
                     NotificationCenter.default.post(name: .openGoTo, object: nil)
@@ -176,6 +182,11 @@ struct SillApp: App {
                     store.newAPIClientTab()
                 }
                 .keyboardShortcut("r", modifiers: [.command, .option])
+
+                Button("New MCP Explorer Tab") {
+                    store.newMCPClientTab()
+                }
+                .keyboardShortcut("m", modifiers: [.command, .option])
             }
 
             CommandMenu("Favorites") {

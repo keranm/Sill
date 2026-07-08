@@ -256,7 +256,7 @@ struct RailView: View {
                             ? { store.resetPinnedTab(tab) }
                             : nil,
                         addFavorite: {
-                            guard let url = tab.url, !tab.isAPIClientTab else { return }
+                            guard let url = tab.url, !tab.isInternalTab else { return }
                             store.addFavorite(title: tab.title, url: url, sourceTab: tab)
                         }
                     )
@@ -688,7 +688,7 @@ private struct TabRow: View {
         .contextMenu {
             if let pin {
                 Button("Pin Tab") { pin() }
-                    .disabled(tab.url == nil || tab.isAPIClientTab)
+                    .disabled(tab.url == nil || tab.isInternalTab)
             }
             if let resetToPinned {
                 Button("Reset Tab") { resetToPinned() }
@@ -698,7 +698,7 @@ private struct TabRow: View {
             }
             if let addFavorite {
                 Button("Add to Favorites") { addFavorite() }
-                    .disabled(tab.url == nil || tab.isAPIClientTab)
+                    .disabled(tab.url == nil || tab.isInternalTab)
             }
             if unpin == nil {
                 Button("Close Tab") { close() }

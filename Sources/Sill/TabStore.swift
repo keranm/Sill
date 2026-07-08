@@ -70,6 +70,7 @@ final class TabStore {
     private(set) var observations: ObservationStore!
     private(set) var patterns: PatternStore!
     private(set) var apiClient: APIClientStore!
+    private(set) var mcpClient: MCPClientStore!
 
     /// The payoff moment after confirming a card (D2c): quietly momentous,
     /// a settled room, no confetti.
@@ -87,6 +88,7 @@ final class TabStore {
             migrateColumns()
             observations = ObservationStore(db: db)
             apiClient = APIClientStore(db: db)
+            mcpClient = MCPClientStore(db: db)
             try loadWorkspaces()
             try loadFavorites()
             migrateLegacySessionIfNeeded()
@@ -360,8 +362,8 @@ final class TabStore {
               current.id != dragged.id,
               current.panelPartnerID == nil,
               dragged.panelPartnerID == nil,
-              !current.isAPIClientTab,
-              !dragged.isAPIClientTab,
+              !current.isInternalTab,
+              !dragged.isInternalTab,
               !isFavoriteTab(current),
               !isFavoriteTab(dragged) else { return }
         current.panelPartnerID = dragged.id
@@ -611,6 +613,22 @@ final class TabStore {
         return tab
     }
 
+    /// The MCP explorer, the API client's sibling — same `sill://` internal-tab
+    /// machinery, different host so ShellView routes it to `MCPClientView`.
+    @discardableResult
+    func newMCPClientTab(select: Bool = true) -> BrowserTab {
+        let tab = BrowserTab(url: URL(string: "sill://mcp-client"), title: "MCP Explorer") { [weak self] in
+            self?.persistSession()
+        }
+        let workspace = activeWorkspace
+        workspace.tabs.append(tab)
+        if select {
+            workspace.selectedTabID = tab.id
+        }
+        persistSession()
+        return tab
+    }
+
     /// Closing a paneled tab closes its partner too — a Panel is one unit to
     /// close, even though every call site (Cmd-W, the merged row's single X)
     /// just closes "the tab" without needing to know panels exist. Un-pairs
@@ -634,6 +652,9 @@ final class TabStore {
               let index = workspace.tabs.firstIndex(where: { $0.id == tab.id }) else { return }
         if tab.isAPIClientTab {
             apiClient.removeAllRequestTabs(for: tab.id)
+        }
+        if tab.isMCPClientTab {
+            mcpClient.removeTabState(for: tab.id)
         }
         workspace.tabs.remove(at: index)
         Task { await tab.dehydrate() }
@@ -825,12 +846,12 @@ final class TabStore {
     // MARK: - Navigation input
 
     func navigate(_ input: String, in tab: BrowserTab) {
-        // The API client tab has no webview to load into — `tab.load` would
+        // An internal tab has no webview to load into — `tab.load` would
         // silently overwrite its `sill://` URL with the typed destination,
         // stranding it with neither the client nor a live page (issue found
         // in review, before this guard existed). Open the destination
         // elsewhere instead of destroying the tab.
-        guard !tab.isAPIClientTab else {
+        guard !tab.isInternalTab else {
             openInNewTab(input)
             return
         }

@@ -101,7 +101,7 @@ struct HeaderView: View {
 
     @ViewBuilder
     private var shareButton: some View {
-        if let tab = store.selectedTab, let url = tab.url, !tab.isAPIClientTab {
+        if let tab = store.selectedTab, let url = tab.url, !tab.isInternalTab {
             ShareLink(item: url) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 10.5, weight: .medium))
@@ -188,12 +188,12 @@ struct HeaderView: View {
 
     @ViewBuilder
     private var readout: some View {
-        if let tab = store.selectedTab, tab.isAPIClientTab {
-            // No navigable URL to show or edit — the API client isn't a
+        if let tab = store.selectedTab, tab.isInternalTab {
+            // No navigable URL to show or edit — an internal tab isn't a
             // website. Not clickable: opening Go-To and submitting a URL
             // here would otherwise overwrite `tab.url` away from `sill://`
             // with no webview to load it into, stranding the tab blank.
-            Text("API Client")
+            Text(tab.isMCPClientTab ? "MCP Explorer" : "API Client")
                 .font(Tokens.font(12.5))
                 .foregroundStyle(Tokens.inkGhost)
                 .padding(.horizontal, 8)
