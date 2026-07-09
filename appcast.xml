@@ -349,5 +349,28 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.3/sill.zip" length="3254270" type="application/octet-stream" sparkle:edSignature="GVlgxI6Aq97Ktv5xarzY0GkfAojTMvXplm9CG+hYt2xQ/Yj1p9i20haehGMXiE5UtlIKl3lhYVBlgp4oYtrpDw==" />
     </item>
+    <item>
+      <title>Version 0.3.4</title>
+      <pubDate>Thu, 09 Jul 2026 21:55:32 +0000</pubDate>
+      <sparkle:version>202607092154</sparkle:version>
+      <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>Sill 0.3.4 gives you back your screen — and a few choices that were always yours to make.</p>
+<ul>
+  <li><b>Collapsible sidebar</b>: press ⌘S and the sidebar folds down to a slim strip of icons — every favorite, pinned site and tab still one click away. Rest your mouse on the strip and the full sidebar slides out over the page; move away and it tucks itself back in.</li>
+  <li><b>Videos wait for you</b>: nothing plays until you press play. Anywhere.</li>
+  <li><b>Cookie pop-ups, your call</b>: Sill has its first Settings window (⌘,), and in it a switch that quietly hides cookie-consent banners. It's off by default — whether to answer those prompts is your decision, not your browser's.</li>
+  <li><b>Local files, if you want them</b>: a second opt-in switch lets you open files on your Mac — type a path, submit a bare <code>file://</code> to browse for one, or drop a file straight onto the sidebar. Until you flip it, pages can never reach your files.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  We taught the consent banners some manners. Turns out that's just the way the cookie consents.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.3.3...v0.3.4">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.4/sill.zip" length="3612548" type="application/octet-stream" sparkle:edSignature="BZnmZZavCEtVQUt6+zADlVFqnd50Ox77rDNjO5UlE3QEAeOZrkylsDlfKDAmErwYFD5rsINZdrhXKR2Nr58+Bg==" />
+    </item>
   </channel>
 </rss>
