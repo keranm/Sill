@@ -14,10 +14,31 @@ struct ShellView: View {
     @State private var learningShown = false
     @State private var panelDropTargeted = false
 
+    /// The full rail sliding out over the stage while the rail is collapsed.
+    /// The dwell before it opens is the Edge trick: long enough to click a
+    /// glyph on the strip without triggering it, short enough to feel instant
+    /// when you do want the full rail.
+    @State private var railFlyoutShown = false
+    @State private var railHoverTask: Task<Void, Never>?
+    private static let flyoutDwell: Duration = .milliseconds(200)
+
     var body: some View {
         ZStack {
             HStack(spacing: 0) {
-                RailView(store: store)
+                if store.railCollapsed {
+                    CollapsedRailView(store: store)
+                        .onHover { hovering in
+                            railHoverTask?.cancel()
+                            guard hovering, !railFlyoutShown else { return }
+                            railHoverTask = Task {
+                                try? await Task.sleep(for: Self.flyoutDwell)
+                                guard !Task.isCancelled else { return }
+                                railFlyoutShown = true
+                            }
+                        }
+                } else {
+                    RailView(store: store)
+                }
 
                 VStack(spacing: 0) {
                     HeaderView(store: store)
@@ -28,6 +49,17 @@ struct ShellView: View {
             }
             .background(Tokens.canvas)
             .ignoresSafeArea(.container, edges: .top)
+            .animation(.easeOut(duration: 0.18), value: store.railCollapsed)
+
+            // Mounted (offscreen) the whole time the rail is collapsed, not
+            // inserted on hover: an insertion transition lays the rail out at
+            // its final position for one frame before the move animation
+            // starts — the favorites grid visibly snapped from the strip's
+            // single column to its 3-wide layout over the page. Sliding a
+            // pre-laid-out view by offset can't pop.
+            if store.railCollapsed {
+                railFlyout
+            }
 
             if let mode = paletteMode {
                 PaletteOverlay(store: store, mode: mode, isPresented: Binding(
@@ -66,6 +98,41 @@ struct ShellView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openLearning)) { _ in
             learningShown = true
         }
+        .onChange(of: store.railCollapsed) {
+            railHoverTask?.cancel()
+            railFlyoutShown = false
+        }
+    }
+
+    /// The full rail floating over the stage while collapsed — content is
+    /// never pushed, mirroring Arc/Edge. Leaves the flyout when the mouse
+    /// does, unless a rail drag is in flight (closing mid-drag would yank
+    /// the drag source out from under the drop).
+    private var railFlyout: some View {
+        RailView(store: store)
+            .background(Tokens.canvas)
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(Tokens.hairline)
+                    .frame(width: 1)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 18, x: 6, y: 0)
+            .onHover { hovering in
+                railHoverTask?.cancel()
+                guard !hovering else { return }
+                railHoverTask = Task {
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled, store.dragState.draggingTabID == nil else { return }
+                    railFlyoutShown = false
+                }
+            }
+            // Parked just past the leading edge (rail width + shadow spill)
+            // when hidden; the offset is the only thing that animates.
+            .offset(x: railFlyoutShown ? 0 : -(Tokens.railWidth + 30))
+            .animation(.easeOut(duration: 0.16), value: railFlyoutShown)
+            .allowsHitTesting(railFlyoutShown)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .ignoresSafeArea(.container, edges: .top)
     }
 
     @ViewBuilder

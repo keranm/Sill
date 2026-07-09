@@ -64,6 +64,9 @@ struct HeaderView: View {
             let filename = (notification.userInfo?["filename"] as? String) ?? "file"
             showTransient("Downloaded \(filename)")
         }
+        .onReceive(NotificationCenter.default.publisher(for: .localFilesBlocked)) { _ in
+            showTransient("Local file access is off — see Settings (⌘,)")
+        }
     }
 
     private func showTransient(_ message: String) {
@@ -197,6 +200,27 @@ struct HeaderView: View {
                 .font(Tokens.font(12.5))
                 .foregroundStyle(Tokens.inkGhost)
                 .padding(.horizontal, 8)
+        } else if let tab = store.selectedTab, let url = tab.url, url.isFileURL {
+            // Local file: filename in ink, its folder as the faint fact —
+            // there's no host for the domain readout to speak for.
+            Button {
+                NotificationCenter.default.post(name: .openGoTo, object: nil)
+            } label: {
+                HStack(spacing: 5) {
+                    Text(url.lastPathComponent)
+                        .font(Tokens.font(12.5, .medium))
+                        .foregroundStyle(Tokens.ink)
+                    Text(url.deletingLastPathComponent().path(percentEncoded: false))
+                        .font(Tokens.font(12.5))
+                        .foregroundStyle(Tokens.inkFaint)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         } else if let tab = store.selectedTab, let url = tab.url, let host = url.host() {
             let state = tab.securityState
             HStack(spacing: 6) {

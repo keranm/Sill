@@ -50,6 +50,9 @@ enum Tokens {
     // MARK: Metrics
 
     static let railWidth: CGFloat = 216
+    /// Icons-only collapsed rail — wide enough that the traffic lights
+    /// (which float over the rail's top strip) stay on canvas.
+    static let railCollapsedWidth: CGFloat = 68
     static let radiusStage: CGFloat = 10
     static let radiusControl: CGFloat = 7
 }

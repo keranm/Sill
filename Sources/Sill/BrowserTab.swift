@@ -169,7 +169,13 @@ final class BrowserTab: Identifiable {
 
     func load(_ url: URL) {
         if let webView {
-            webView.load(URLRequest(url: url))
+            if url.isFileURL {
+                // Read access to the containing directory, not just the file,
+                // so a local page's relative assets (CSS, images) resolve.
+                webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            } else {
+                webView.load(URLRequest(url: url))
+            }
         } else {
             self.url = url
         }
@@ -205,6 +211,10 @@ final class BrowserTab: Identifiable {
                     guard let self else { return }
                     if let title = view.title, !title.isEmpty {
                         self.title = title
+                    } else if let url = view.url, url.isFileURL {
+                        // Non-HTML local files have no <title>; the filename
+                        // is the honest name (a file URL has no host either).
+                        self.title = url.lastPathComponent
                     } else if let host = view.url?.host() {
                         self.title = host
                     }

@@ -123,6 +123,12 @@ struct SillApp: App {
             }
 
             CommandGroup(after: .toolbar) {
+                // Arc's muscle memory: ⌘S collapses the rail to icons only.
+                Button(store.railCollapsed ? "Show Sidebar" : "Hide Sidebar") {
+                    store.railCollapsed.toggle()
+                }
+                .keyboardShortcut("s", modifiers: .command)
+
                 Button("Open Location") {
                     NotificationCenter.default.post(name: .openGoTo, object: nil)
                 }
@@ -199,6 +205,10 @@ struct SillApp: App {
             }
         }
         .windowStyle(.hiddenTitleBar)
+
+        Settings {
+            SettingsView(store: store)
+        }
 
         WindowGroup(for: QuickLookRequest.self) { $request in
             if let request {

@@ -1,6 +1,12 @@
 import AppKit
 import WebKit
 import Observation
+import UniformTypeIdentifiers
+
+extension Notification.Name {
+    /// A local-file drop arrived while the Settings toggle is off.
+    static let localFilesBlocked = Notification.Name("sill.localFilesBlocked")
+}
 
 /// Which rail list a tab belongs in — the drag-and-drop target for
 /// reordering and for moving a tab between Pinned and Tabs.
@@ -62,6 +68,32 @@ final class TabStore {
     /// Panel-view drop target both need it) — lives here, not as view-local
     /// @State, since RailView and ShellView are siblings.
     let dragState = TabReorderState()
+
+    /// Icons-only rail (Arc/Edge-style collapse). Lives here rather than as
+    /// view-local @State so the View menu item can read it for its title and
+    /// toggle it; persisted in UserDefaults — a window preference, not
+    /// browsing data, so it stays out of the SQLite store.
+    var railCollapsed: Bool = UserDefaults.standard.bool(forKey: "railCollapsed") {
+        didSet { UserDefaults.standard.set(railCollapsed, forKey: "railCollapsed") }
+    }
+
+    /// Settings toggle: opening local files by typed path/file:// URL.
+    /// Off by default — safe out of the box, the user opts in.
+    var localFileAccessEnabled: Bool = UserDefaults.standard.bool(forKey: "localFileAccess") {
+        didSet { UserDefaults.standard.set(localFileAccessEnabled, forKey: "localFileAccess") }
+    }
+
+    /// Settings toggle: hiding cookie-consent prompts (EasyList Cookie
+    /// List). Off by default — whether to answer or suppress those prompts
+    /// is the user's decision (GDPR posture), not the browser's. Flips
+    /// reach live webviews via the blocker; already-rendered pages need a
+    /// reload to change.
+    var cookieBannerBlockingEnabled: Bool = UserDefaults.standard.bool(forKey: "cookieBannerBlocking") {
+        didSet {
+            UserDefaults.standard.set(cookieBannerBlockingEnabled, forKey: "cookieBannerBlocking")
+            contentBlocker.refreshGates()
+        }
+    }
 
     @ObservationIgnored private var db: Database!
     @ObservationIgnored private lazy var webKitDelegate = WebKitDelegate(store: self)
@@ -435,6 +467,9 @@ final class TabStore {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.preferences.isFraudulentWebsiteWarningEnabled = true
         configuration.preferences.isElementFullscreenEnabled = true
+        // Videos wait for a click, always (community ask, 2026-07-10 triage).
+        // Popups inherit this through the opener's configuration.
+        configuration.mediaTypesRequiringUserActionForPlayback = .all
         return configuration
     }
 
@@ -896,6 +931,13 @@ final class TabStore {
             openInNewTab(input)
             return
         }
+        if localFileAccessEnabled, Self.isLocalFilePrompt(input) {
+            guard let fileURL = chooseLocalFile() else { return }
+            materialize(tab)
+            tab.transitionHint = "typed"
+            tab.load(fileURL)
+            return
+        }
         if let destination = Self.destination(for: input) {
             materialize(tab)
             tab.transitionHint = "typed"
@@ -904,10 +946,61 @@ final class TabStore {
     }
 
     func openInNewTab(_ input: String) {
+        if localFileAccessEnabled, Self.isLocalFilePrompt(input) {
+            guard let fileURL = chooseLocalFile() else { return }
+            let tab = newTab(url: fileURL)
+            tab.transitionHint = "typed"
+            return
+        }
         if let destination = Self.destination(for: input) {
             let tab = newTab(url: destination)
             tab.transitionHint = "typed"
         }
+    }
+
+    /// A bare file scheme with nothing after it — the user is asking to
+    /// browse for a file, not naming one. Submitting it (with local file
+    /// access on) opens the standard open panel instead of a dead load.
+    nonisolated static func isLocalFilePrompt(_ input: String) -> Bool {
+        ["file:", "file:/", "file://", "file:///"]
+            .contains(input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    private func chooseLocalFile() -> URL? {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose a file to open in Sill"
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    /// Files dropped from Finder onto the rail — each opens in its own tab.
+    /// Still gated on the Settings toggle so "local files are off" stays one
+    /// simple fact; a gated drop posts `.localFilesBlocked` so the header
+    /// can say why nothing happened. Returns whether the drop was consumed.
+    func handleDroppedFileProviders(_ providers: [NSItemProvider]) -> Bool {
+        let fileProviders = providers.filter {
+            $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+        }
+        guard !fileProviders.isEmpty else { return false }
+        guard localFileAccessEnabled else {
+            NotificationCenter.default.post(name: .localFilesBlocked, object: nil)
+            return true
+        }
+        for provider in fileProviders {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                guard let data = item as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil),
+                      !url.hasDirectoryPath else { return }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    let tab = self.newTab(url: url)
+                    tab.transitionHint = "typed"
+                }
+            }
+        }
+        return true
     }
 
     /// Everything the observation event needs about a visit in this shell.
@@ -917,9 +1010,31 @@ final class TabStore {
         return (workspace?.id.uuidString, domains)
     }
 
-    nonisolated static func destination(for input: String) -> URL? {
+    /// `allowingLocalFiles` defaults to the user's Settings toggle (off out
+    /// of the box — the browser can't be steered into files on this Mac
+    /// unless its owner opted in). Evaluated at call time, so every caller
+    /// honours a toggle flip immediately; tests pass it explicitly.
+    nonisolated static func destination(
+        for input: String,
+        allowingLocalFiles: Bool = UserDefaults.standard.bool(forKey: "localFileAccess")
+    ) -> URL? {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
+        // Local files (community ask, 2026-07-10): an absolute or ~ path, or
+        // an explicit file:// URL. Before the search heuristics — local paths
+        // can legitimately contain spaces. When the toggle is off, these
+        // fall through to the ordinary search/https treatment below, exactly
+        // as if the feature didn't exist.
+        if allowingLocalFiles {
+            if trimmed.hasPrefix("/") || trimmed.hasPrefix("~/") || trimmed == "~" {
+                return URL(fileURLWithPath: (trimmed as NSString).expandingTildeInPath)
+            }
+            if trimmed.lowercased().hasPrefix("file://") {
+                // URL(string:) rejects unescaped spaces; fall back to treating
+                // everything after the scheme as a plain path.
+                return URL(string: trimmed) ?? URL(fileURLWithPath: String(trimmed.dropFirst("file://".count)))
+            }
+        }
         if trimmed.contains(" ") || (!trimmed.contains(".") && !trimmed.contains("localhost")) {
             var components = URLComponents(string: "https://www.google.com/search")!
             components.queryItems = [URLQueryItem(name: "q", value: trimmed)]

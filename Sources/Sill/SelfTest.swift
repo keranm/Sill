@@ -43,6 +43,13 @@ enum SelfTest {
         expect(TabStore.destination(for: "what is a sill")?.host() == "www.google.com", "words become search")
         expect(TabStore.destination(for: "http://example.com")?.scheme == "http", "explicit http kept")
 
+        // Local file access — gated on the Settings toggle, off by default.
+        expect(TabStore.destination(for: "~/index.html", allowingLocalFiles: true)?.isFileURL == true, "tilde path becomes file URL when enabled")
+        expect(TabStore.destination(for: "/tmp/a b.html", allowingLocalFiles: true)?.isFileURL == true, "path with space becomes file URL when enabled")
+        expect(TabStore.destination(for: "file:///tmp/x.html", allowingLocalFiles: true)?.isFileURL == true, "file:// URL kept when enabled")
+        expect(TabStore.destination(for: "~/index.html", allowingLocalFiles: false)?.isFileURL != true, "tilde path is not a file URL when disabled")
+        expect(TabStore.destination(for: "file:///tmp/x.html", allowingLocalFiles: false)?.isFileURL != true, "file:// URL refused when disabled")
+
         // Exclusion rules (PRD §3.3)
         expect(ExclusionList.isExcluded(domain: "commbank.com.au", userAdded: []), "bank domain excluded")
         expect(ExclusionList.isExcluded(domain: "bankwest.com.au", userAdded: []), "bank keyword excluded")

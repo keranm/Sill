@@ -33,7 +33,7 @@ struct QuickLookView: View {
         .background(WindowConfigurator())
         .onAppear {
             guard tab == nil else { return }
-            let newTab = BrowserTab(url: initialURLString.flatMap(TabStore.destination(for:))) {}
+            let newTab = BrowserTab(url: initialURLString.flatMap { TabStore.destination(for: $0) }) {}
             tab = newTab
             if newTab.url != nil {
                 store.materialize(newTab)

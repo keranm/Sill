@@ -14,16 +14,31 @@ command palette, DevTools (Inspector, page capture, API Client, MCP Explorer,
 JSON formatting), Quick Look, Pinned Tabs, Favorites, Glance, Panel view,
 drag-and-drop tab management. Bundle id is `app.sill`.
 
+Built 2026-07-10, unreleased: collapsible sidebar (⌘S, icons-only rail,
+hover flyout), and three quick wins from the community-feedback triage below —
+autoplay control (videos wait for a click, `makeConfiguration`); cookie-consent
+banner suppression (EasyList Cookie List in `Resources/Blocklists/`, refresh
+via `scripts/convert-cookie-list.py`) — **opt-in via Settings, off by default**:
+under GDPR the consent prompt is the user's to answer or suppress, not the
+browser's; and opt-in local file access (off by default — typed paths/file://,
+a bare `file://` opens the open panel, Finder drops on the rail open new tabs).
+Both toggles live in Sill's first Settings window (⌘,); the shared posture is
+safe-out-of-the-box, the user opts in.
+
 ---
 
 ## Next up
 
-- **Sense-check the concept for real.** The original PRD's H1–H5 (and the
-  Evolution doc's H6) were never formally graded — daily-drive Sill for a
-  real stretch and grade them against the decision gates in
-  `docs/archive/Sill-PoC-PRD.md` §7. This is the thing everything else here
-  is downstream of: whether Sill graduates into "build this out" territory
-  or a hypothesis quietly fails is evidence, not a vibe.
+- **Sense-check: graded 2026-07-10 — see `docs/h-grading.md`.** H1 pass
+  (4/6 surfaced patterns real, though only 1 formally confirmed), H2
+  **inconclusive** — population mismatch (owner is a casual home browser,
+  not the SaaS-dense worker the detectors are tuned for; patterns surfaced
+  were real but banal), H3 pass, H4 never measured, H5 in progress (7/14
+  days), H6 N/A (unbuilt). Outstanding from the grading: **(a)** a decision
+  memo — *who is Sill for, and what should the engine detect for that
+  person?* — before any more learning-engine code; **(b)** actually run the
+  H4 benchmark per `docs/M2-workspaces.md`; **(c)** re-grade H5 around
+  Jul 17 when the 14-day streak completes.
 - **Apple entitlement requests.** Tracked in `docs/7-day-polish.md` §1 —
   **not yet sent**, long turnaround expected once it is. Two separate asks
   worth bundling into one email: `com.apple.developer.web-browser` (default-
@@ -55,6 +70,37 @@ drag-and-drop tab management. Bundle id is `app.sill`.
   the user's terms" — scoped to a single observed workspace routine ("handle
   the Mornings routine") rather than open-ended browser control. Nothing
   beyond H6 is scoped yet; this is direction, not a spec.
+
+- **Per-site CSS overrides (user styles).** From the 2026-07-10 community
+  triage: `WKUserScript`-injected per-domain stylesheets, stored in SQLite,
+  a natural fit for the dev-tools identity. Domain identity must use
+  `DisplayNames.observationDomain`, not `HostDisplay.registrableDomain`
+  (the standing subdomain-collapsing trap). Medium effort, not started.
+
+## Considered and declined (2026-07-10 community-feedback triage)
+
+Community asks weighed against Sill's identity (local-first, deterministic,
+no LLM, consent-first, WebKit). Recorded so they aren't relitigated:
+
+- **Enterprise session security / DLP / BYOD / Shadow IT tracking** — wrong
+  customer (Island/Citrix enterprise-browser market), and philosophically
+  backwards: Sill observes *for the user, with consent, locally*; employee
+  monitoring is the same machinery pointed the other way.
+- **Chatbot webUI / AI sidebar** — direct no-LLM contradiction; same call as
+  `docs/dia-sill-comparison.md`. A chatbot site as a Favorite works today.
+- **SVG debugging tools** (mask/clipPath previews, filter stepping) — Web
+  Inspector is Apple's compiled UI, not extensible from outside; a bespoke
+  SVG debugger is a product in itself. Revisit only if the dev-tools
+  direction deepens after H-grading.
+- **A standardized "Cookie API"** — a web-standards/gatekeeper play needing
+  market share. The shippable slice (consent-banner suppression) shipped in
+  the triage's quick wins instead.
+- **Bookmark sidebar** — already effectively covered: bookmarks import +
+  live palette search + Favorites/Pinned as the curated tier. Revisit only
+  if daily use shows palette search isn't enough.
+- Also noted: the "seamless context switching / unified workspace
+  management" gap named in enterprise-browser research *is* Sill's
+  workspaces + hibernation — validation of the core bet, no work item.
 
 ## Accepted gaps (revisit only on new evidence)
 

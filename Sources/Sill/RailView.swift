@@ -70,6 +70,12 @@ struct RailView: View {
         }
         .frame(width: Tokens.railWidth)
         .background(Tokens.canvas)
+        // Finder drops open in new tabs (gated on the local-files setting).
+        // Tab-reorder drags are .plainText, so the inner drop delegates keep
+        // them; only real file drags reach this.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            store.handleDroppedFileProviders(providers)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .newWorkspace)) { _ in
             namingNew = true
             switcherShown = true

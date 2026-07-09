@@ -8,12 +8,27 @@ import WebKit
 /// randomised domains (Admiral and friends).
 ///
 /// Lists live in Resources/Blocklists/*.json (Safari content-blocker format).
-/// Current snapshot: EasyList ad-server domains, July 2026. Refresh by
-/// re-running the conversion documented in docs/M3-consent-import.md.
+/// Current snapshots: EasyList ad-server domains (July 2026, conversion
+/// documented in docs/M3-consent-import.md) and EasyList Cookie List
+/// (July 2026, refresh via scripts/convert-cookie-list.py).
+///
+/// Lists named in `optInLists` are user-gated behind a Settings toggle and
+/// ship OFF — hiding cookie-consent prompts is the user's decision to make
+/// (GDPR posture), not the browser's. Everything else is always on.
 @MainActor
 final class ContentBlocker {
-    private(set) var ruleLists: [WKContentRuleList] = []
-    private var onReady: [(WKContentRuleList) -> Void] = []
+    private struct Compiled {
+        let name: String
+        let list: WKContentRuleList
+    }
+
+    /// List name (filename sans .json) → the UserDefaults key gating it.
+    private static let optInLists = ["easylist-cookie": "cookieBannerBlocking"]
+
+    private var compiled: [Compiled] = []
+    /// Every controller ever attached, weakly — so a Settings toggle flip
+    /// can reach webviews that already exist, not just future ones.
+    private let controllers = NSHashTable<WKUserContentController>.weakObjects()
 
     func compile() {
         guard let urls = BundledResources.bundle?.urls(forResourcesWithExtension: "json", subdirectory: "Blocklists"),
@@ -26,13 +41,13 @@ final class ContentBlocker {
 
             store?.lookUpContentRuleList(forIdentifier: versionedID) { [weak self] cached, _ in
                 if let cached {
-                    Task { @MainActor in self?.adopt(cached) }
+                    Task { @MainActor in self?.adopt(name: identifier, list: cached) }
                     return
                 }
                 guard let json = try? String(contentsOf: url, encoding: .utf8) else { return }
                 store?.compileContentRuleList(forIdentifier: versionedID, encodedContentRuleList: json) { compiled, error in
                     if let compiled {
-                        Task { @MainActor in self?.adopt(compiled) }
+                        Task { @MainActor in self?.adopt(name: identifier, list: compiled) }
                     } else if let error {
                         NSLog("Sill content blocker: compile failed for \(identifier): \(error)")
                     }
@@ -41,21 +56,42 @@ final class ContentBlocker {
         }
     }
 
-    private func adopt(_ ruleList: WKContentRuleList) {
-        ruleLists.append(ruleList)
-        for callback in onReady {
-            callback(ruleList)
+    private func adopt(name: String, list: WKContentRuleList) {
+        compiled.append(Compiled(name: name, list: list))
+        guard isEnabled(name) else { return }
+        for controller in controllers.allObjects {
+            controller.add(list)
         }
     }
 
-    /// Applies already-compiled lists and subscribes the controller to any
-    /// that finish compiling later (first launch).
+    private func isEnabled(_ name: String) -> Bool {
+        guard let key = Self.optInLists[name] else { return true }
+        return UserDefaults.standard.bool(forKey: key)
+    }
+
+    /// Applies enabled lists now and keeps the controller subscribed to
+    /// lists that finish compiling later (first launch) and to Settings
+    /// toggle flips.
     func attach(to controller: WKUserContentController) {
-        for ruleList in ruleLists {
-            controller.add(ruleList)
+        controllers.add(controller)
+        for item in compiled where isEnabled(item.name) {
+            controller.add(item.list)
         }
-        onReady.append { [weak controller] ruleList in
-            controller?.add(ruleList)
+    }
+
+    /// Re-reads the gates and updates every live webview. New page loads see
+    /// the change immediately; already-rendered pages need a reload.
+    func refreshGates() {
+        for item in compiled where Self.optInLists[item.name] != nil {
+            let enabled = isEnabled(item.name)
+            for controller in controllers.allObjects {
+                // Remove-then-add keeps this idempotent regardless of the
+                // controller's current state.
+                controller.remove(item.list)
+                if enabled {
+                    controller.add(item.list)
+                }
+            }
         }
     }
 }
