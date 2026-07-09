@@ -326,5 +326,28 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.2/sill.zip" length="3255259" type="application/octet-stream" sparkle:edSignature="AVE398QTcZKY0HLv3CzMnHhi3LehIDp5TRH3wHbDbfUe0Ufryxk8KFCPWkhFYnPLNCGn6BAvcnap4QvAV5qbCA==" />
     </item>
+    <item>
+      <title>Version 0.3.3</title>
+      <pubDate>Thu, 09 Jul 2026 06:47:33 +0000</pubDate>
+      <sparkle:version>202607090646</sparkle:version>
+      <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>Favorites stopped hoarding. Two fixes for anyone who lives out of their pinned sites.</p>
+<ul>
+  <li><b>Cmd+T works from a Favorite again</b>: new tabs used to pile up silently behind the favorite you were looking at. Now the new tab appears immediately, search box focused and ready to type.</li>
+  <li><b>Glance is back for Favorites</b>: click an outbound link in a favorited site — Gmail's "Track parcel", say — and it opens in the Glance overlay instead of dumping a full tab, even when the site sneaks the link through a blank popup or a tracking redirect. Genuine same-site popups still become real tabs, like they should.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  Track the parcel, peek —<br>
+  the carrier comes to you.<br>
+  Your inbox stays put.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.3.2...v0.3.3">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.3/sill.zip" length="3254270" type="application/octet-stream" sparkle:edSignature="GVlgxI6Aq97Ktv5xarzY0GkfAojTMvXplm9CG+hYt2xQ/Yj1p9i20haehGMXiE5UtlIKl3lhYVBlgp4oYtrpDw==" />
+    </item>
   </channel>
 </rss>
