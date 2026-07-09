@@ -39,12 +39,16 @@ safe-out-of-the-box, the user opts in.
   person?* — before any more learning-engine code; **(b)** actually run the
   H4 benchmark per `docs/M2-workspaces.md`; **(c)** re-grade H5 around
   Jul 17 when the 14-day streak completes.
-- **Apple entitlement requests.** Tracked in `docs/7-day-polish.md` §1 —
-  **not yet sent**, long turnaround expected once it is. Two separate asks
-  worth bundling into one email: `com.apple.developer.web-browser` (default-
-  browser eligibility; Web Inspector's long-term reliability hinges partly
-  on this) and `com.apple.developer.web-browser.public-key-credential`
-  (passkeys — see below). Downloads turned out not to depend on either.
+- **Apple entitlements — reframed 2026-07-10** (full detail in
+  `docs/7-day-polish.md` §1). The email route auto-bounced to a form, and
+  the form revealed: `com.apple.developer.web-browser` is iOS-family only —
+  **macOS needs no entitlement to be the default browser** (Sill already
+  declares http/https; verify it appears in System Settings). The one ask
+  that matters is the macOS-native passkey entitlement,
+  `com.apple.developer.web-browser.public-key-credential` — dedicated form
+  at developer.apple.com/contact/request/macos-browsers-passkeys/, Account
+  Holder submits, Sill meets the published criteria. Downloads and (it turns
+  out) default-browser status never depended on any of this.
 
 ## Proposed, not built
 

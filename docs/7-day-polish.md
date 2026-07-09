@@ -20,17 +20,33 @@ Everything else on this list is ours to fix. This one isn't — it's an email
 to Apple, and historically a slow, opaque process even for solo developers.
 Send it first so the clock is running while the rest of this list gets worked.
 
-- [ ] **Not yet sent** (draft is filled in and ready — Team ID `AUEPCDGA5G`,
-      bundle id `app.sill`). Send `docs/apple-default-browser-request-draft.md`
-      to `default-browser-requests@apple.com`.
-- [ ] **Before sending, decide whether to bundle a second ask in the same
-      email**: passkeys need their own, separate entitlement —
-      `com.apple.developer.web-browser.public-key-credential` — distinct
-      from `com.apple.developer.web-browser`. Confirmed by Apple's own
-      AutoFill/WebAuthn engineer (Ricky Mondello) as the mechanism Chrome
-      and Firefox use for Apple Passwords passkey support. Worth asking
-      for both in one email rather than two separate slow round-trips,
-      unless there's a reason to keep the requests separate.
+- [x] **Email sent 2026-07-10 → auto-response: the email route is retired.**
+      Apple replied instantly pointing at a request form. Investigating the
+      form revealed the real lay of the land (all verified against Apple's
+      live docs, 2026-07-10):
+      - The default-browser form (and `com.apple.developer.web-browser`
+        itself) is **iOS/iPadOS/visionOS-only** — the form literally requires
+        confirming the app is built for those platforms. It does not apply
+        to a macOS-only app and should NOT be submitted for Sill.
+      - **On macOS no entitlement is needed to be the default browser.**
+        Sill already declares http/https in `CFBundleURLTypes`, so it should
+        be selectable in System Settings → Desktop & Dock → Default web
+        browser today. (Verify once; if it appears, this ask dissolves
+        entirely.) The earlier hope that this entitlement would shore up Web
+        Inspector's private-API future is therefore moot — that risk stands
+        on its own.
+      - **The entitlement Sill actually needs is the passkey one**, and it
+        is macOS-native: `com.apple.developer.web-browser.public-key-credential`
+        (platforms: macOS, Mac Catalyst). Dedicated request form:
+        <https://developer.apple.com/contact/request/macos-browsers-passkeys/>
+        — must be submitted by the Account Holder. Criteria (Sill meets all,
+        verified): http/https in Info.plist; URL field/search/bookmarks on
+        launch; direct navigation without redirects.
+- [ ] **Submit the macOS Browsers Passkeys form** (Account Holder, signed
+      in): app.sill, Team `AUEPCDGA5G`. Once granted, the integration work
+      is `ASAuthorizationWebBrowserPublicKeyCredentialManager`.
+- [ ] **Check System Settings → Desktop & Dock → Default web browser** for
+      Sill in the list — expected to appear with no entitlement.
 - [ ] Once (if) granted: re-test Web Inspector's long-term reliability
       (Downloads turned out not to depend on it — see §2, resolved
       2026-07-07 — but the private Inspector API's future behavior is
