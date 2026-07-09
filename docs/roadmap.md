@@ -45,9 +45,9 @@ safe-out-of-the-box, the user opts in.
   **macOS needs no entitlement to be the default browser** (Sill already
   declares http/https; verify it appears in System Settings). The one ask
   that matters is the macOS-native passkey entitlement,
-  `com.apple.developer.web-browser.public-key-credential` — dedicated form
-  at developer.apple.com/contact/request/macos-browsers-passkeys/, Account
-  Holder submits, Sill meets the published criteria. Downloads and (it turns
+  `com.apple.developer.web-browser.public-key-credential` — **submitted
+  2026-07-10, Request ID `BD9Q6ZFRD9`** (`app.sill` App ID registered in the
+  developer account the same day). Waiting on Apple. Downloads and (it turns
   out) default-browser status never depended on any of this.
 
 ## Proposed, not built

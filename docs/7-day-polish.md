@@ -42,9 +42,14 @@ Send it first so the clock is running while the rest of this list gets worked.
         — must be submitted by the Account Holder. Criteria (Sill meets all,
         verified): http/https in Info.plist; URL field/search/bookmarks on
         launch; direct navigation without redirects.
-- [ ] **Submit the macOS Browsers Passkeys form** (Account Holder, signed
-      in): app.sill, Team `AUEPCDGA5G`. Once granted, the integration work
-      is `ASAuthorizationWebBrowserPublicKeyCredentialManager`.
+- [x] **macOS Browsers Passkeys form SUBMITTED 2026-07-10** — Request ID
+      `BD9Q6ZFRD9`, app.sill, Team `AUEPCDGA5G`. The `app.sill` App ID was
+      registered in Certificates, Identifiers & Profiles first (it had never
+      existed — Developer ID/codesign signing never registers one; Apple
+      attaches managed entitlements to an App ID). Once granted: the
+      integration work is `ASAuthorizationWebBrowserPublicKeyCredentialManager`,
+      plus signing with a Developer ID provisioning profile carrying the
+      capability (Makefile/release.sh change).
 - [ ] **Check System Settings → Desktop & Dock → Default web browser** for
       Sill in the list — expected to appear with no entitlement.
 - [ ] Once (if) granted: re-test Web Inspector's long-term reliability
