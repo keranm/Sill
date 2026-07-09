@@ -2,7 +2,7 @@
 
 **To:** default-browser-requests@apple.com
 **From:** (send from your primary Apple Developer account email, not an alias)
-**Subject:** Default Browser Entitlement Request — Sill (app.sill)
+**Subject:** Web Browser Entitlement Requests — Sill (app.sill)
 
 ---
 
@@ -23,7 +23,9 @@ Sill is a working macOS web browser built on WKWebView/the system WebKit engine.
 
 I'd like this app to be eligible to appear as a default web browser option in System Settings, and to confirm whether the current download/file-handling restrictions I'm seeing without this entitlement are expected for apps without it.
 
-Please let me know if you need anything further to process this request.
+I'm also requesting the `com.apple.developer.web-browser.public-key-credential` entitlement for the same app, so Sill can support passkeys via `ASAuthorizationWebBrowserPublicKeyCredentialManager` — as I understand it this is the mechanism third-party browsers use to offer platform passkeys on macOS. Happy to treat the two requests separately if they're reviewed on different tracks.
+
+Please let me know if you need anything further to process either request.
 
 Thank you,
 Keran McKenzie
