@@ -47,6 +47,13 @@ final class BrowserTab: Identifiable {
     /// go-to fields; otherwise the delegate maps WKNavigationType.
     @ObservationIgnored var transitionHint: String?
     @ObservationIgnored var lastNavigationType: String = "other"
+    /// Set on a popup opened from a Pinned/Favorited tab whose destination
+    /// wasn't knowable at creation (window.open with a blank or same-domain
+    /// wrapper URL — Gmail's "Track parcel" pattern). While set, the popup's
+    /// navigations are still candidates for the opener's Glance redirect:
+    /// the first off-domain hop converts the popup into Glance; the first
+    /// real on-domain commit settles it as an ordinary tab. Session-only.
+    @ObservationIgnored var glanceWatchDomain: String?
 
     /// A `sill://` internal tab (the API client, the MCP explorer) is never
     /// backed by a webview and never needs to be — pretending it's always

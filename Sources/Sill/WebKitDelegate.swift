@@ -56,7 +56,13 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
             return nil
         }
 
-        let tab = store.newTab(configuration: configuration, select: true, openedFrom: opener)
+        // A pinned/favorited opener whose popup URL is blank or still on the
+        // home domain (a tracking wrapper that redirects off-site later)
+        // can't be routed to Glance yet — create the popup unselected and
+        // watch where it actually goes (decidePolicyFor / didCommit below).
+        let watchDomain = opener?.pinnedHomeDomain
+        let tab = store.newTab(configuration: configuration, select: watchDomain == nil, openedFrom: opener)
+        tab.glanceWatchDomain = watchDomain
         return tab.webView
     }
 
@@ -184,6 +190,22 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
                 decisionHandler(.cancel)
                 return
             }
+            // Watched popup (createWebViewWith above): its first off-domain
+            // hop — any navigation type, since script-driven loads and server
+            // redirects arrive as .other — becomes the Glance the opener's
+            // click was meant to be, and the placeholder popup goes away.
+            if let watchDomain = tab.glanceWatchDomain,
+               let requestURL = navigationAction.request.url {
+                let destination = Self.resolvingRedirectWrapper(requestURL)
+                if let host = destination.host(),
+                   DisplayNames.observationDomain(for: host) != watchDomain {
+                    tab.glanceWatchDomain = nil
+                    store?.glanceURL = destination
+                    decisionHandler(.cancel)
+                    store?.closeTab(tab)
+                    return
+                }
+            }
         }
         // Hand non-web schemes (mailto:, app links from OAuth redirects) to the OS.
         if let url = navigationAction.request.url,
@@ -216,6 +238,21 @@ final class WebKitDelegate: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         store?.tab(for: webView)?.certificateFailure = nil
+    }
+
+    /// Settles a watched popup (createWebViewWith): real content committing
+    /// on the opener's home domain means it's a genuine same-site popup —
+    /// stop watching and hand it the selection it skipped at creation.
+    /// about:blank commits (host-less) don't settle anything; the popup that
+    /// opened blank is still waiting for script to point it somewhere.
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        guard let store, let tab = store.tab(for: webView),
+              tab.glanceWatchDomain != nil,
+              webView.url?.host() != nil else { return }
+        tab.glanceWatchDomain = nil
+        if store.activeWorkspace.tabs.contains(where: { $0.id == tab.id }) {
+            store.selectedTabID = tab.id
+        }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

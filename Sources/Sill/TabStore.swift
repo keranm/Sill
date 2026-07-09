@@ -596,7 +596,10 @@ final class TabStore {
             workspace.tabs.append(tab)
         }
         if select {
-            workspace.selectedTabID = tab.id
+            // Through the store-level setter, not workspace.selectedTabID:
+            // it clears selectedFavoriteID, which otherwise keeps the
+            // favorite on screen and hides the new tab.
+            selectedTabID = tab.id
         }
         persistSession()
         observations.recordTabEvent(kind: "tab_open", workspaceID: workspace.id.uuidString)
@@ -615,7 +618,7 @@ final class TabStore {
         let workspace = activeWorkspace
         workspace.tabs.append(tab)
         if select {
-            workspace.selectedTabID = tab.id
+            selectedTabID = tab.id
         }
         persistSession()
         return tab
@@ -654,7 +657,7 @@ final class TabStore {
         let workspace = activeWorkspace
         workspace.tabs.append(tab)
         if select {
-            workspace.selectedTabID = tab.id
+            selectedTabID = tab.id
         }
         persistSession()
         return tab
@@ -719,7 +722,11 @@ final class TabStore {
                 return tab
             }
         }
-        return nil
+        // Favorite-backed tabs live outside every workspace (openFavorite),
+        // but their webviews still route here — without this, Glance never
+        // fires for links inside a favorite and outbound clicks leak into
+        // plain new tabs.
+        return favoriteTabs.values.first { $0.webView === webView }
     }
 
     /// Places `tab` at `index` within `section`'s visible order (drag-to-
@@ -788,6 +795,9 @@ final class TabStore {
     func adopt(_ tab: BrowserTab, into workspace: Workspace) {
         workspace.tabs.append(tab)
         workspace.selectedTabID = tab.id
+        if workspace.id == activeWorkspace.id {
+            selectedFavoriteID = nil
+        }
         persistTabs(of: workspace)
         observations.recordTabEvent(kind: "tab_open", workspaceID: workspace.id.uuidString)
     }
