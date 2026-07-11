@@ -99,6 +99,13 @@ struct CollapsedRailView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(isSelected ? Tokens.hairline : .clear, lineWidth: 1)
                 )
+                .overlay(alignment: .topTrailing) {
+                    // Same heads-up badge as the full rail, sized to fit.
+                    if let count = store.headsUp.badgeCount(for: favorite) {
+                        HeadsUpBadge(count: count, compact: true)
+                            .offset(x: 1, y: -1)
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

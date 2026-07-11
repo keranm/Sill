@@ -41,6 +41,15 @@ struct RailView: View {
                     .padding(.top, 12)
             }
 
+            // Heads-up meeting card, right under the favorites it came from
+            // (owner placement, 2026-07-11 — was floating over the stage).
+            if let meeting = store.headsUp.meeting {
+                HeadsUpMeetingCard(store: store, meeting: meeting)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 8)
+                    .transition(.opacity)
+            }
+
             if !store.pinnedTabs.isEmpty || isDraggingTab {
                 pinnedTabList
                     .padding(.horizontal, 10)
@@ -126,6 +135,15 @@ struct RailView: View {
                             RoundedRectangle(cornerRadius: 9)
                                 .strokeBorder(isSelected ? Tokens.hairline : .clear, lineWidth: 1)
                         )
+                        .overlay(alignment: .topTrailing) {
+                            // Heads-up: the favorite's attention count (Gmail
+                            // unread, Home Assistant updates), read from its
+                            // own page (HeadsUp.swift, opt-in).
+                            if let count = store.headsUp.badgeCount(for: favorite) {
+                                HeadsUpBadge(count: count)
+                                    .offset(x: 3, y: -1)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
                 .help(favorite.title.isEmpty ? (favorite.url.host() ?? "") : favorite.title)

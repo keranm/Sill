@@ -173,6 +173,58 @@ enum SelfTest {
             expect(falsePositives.count <= 2, "engine ≤2 false positives (got \(falsePositives.count))")
         }
 
+        // Heads-up favorites: Calendar chip labels → meetings (HeadsUp.swift).
+        do {
+            let now = Date()
+            let cal = Calendar.current
+            func at(_ hour: Int, _ minute: Int) -> Date? {
+                cal.date(bySettingHour: hour, minute: minute, second: 0, of: now)
+            }
+
+            let week = HeadsUpStore.parseEvent(
+                id: "abc", label: "10:30am to 11:30am, Standup, Keran McKenzie, Accepted", now: now)
+            expect(week?.title == "Standup", "heads-up: title after time range (got \(week?.title ?? "nil"))")
+            expect(week?.start == at(10, 30), "heads-up: 12h start parsed")
+            expect(week?.end == at(11, 30), "heads-up: 12h end parsed")
+
+            let inherited = HeadsUpStore.parseEvent(id: "d", label: "11:30 to 12:15pm, Lunch review", now: now)
+            expect(inherited?.start == at(11, 30), "heads-up: start inherits meridiem without running backwards")
+
+            let noon = HeadsUpStore.parseEvent(id: "e", label: "12 to 1pm, Lunch", now: now)
+            expect(noon?.start == at(12, 0), "heads-up: 12pm stays noon")
+
+            let h24 = HeadsUpStore.parseEvent(id: "f", label: "14:00 – 15:00, Design sync", now: now)
+            expect(h24?.start == at(14, 0), "heads-up: 24h clock parsed")
+
+            let monthView = HeadsUpStore.parseEvent(id: "g", label: "10:30am, Standup", now: now)
+            expect(monthView?.start == at(10, 30) && monthView?.end == nil, "heads-up: lone start time (month view)")
+
+            expect(HeadsUpStore.parseEvent(id: "h", label: "Public holiday", now: now) == nil,
+                   "heads-up: all-day event yields no meeting")
+
+            // Week/month views include other days' chips — only today's count.
+            let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+            let months = ["January", "February", "March", "April", "May", "June",
+                          "July", "August", "September", "October", "November", "December"]
+            let todayIndex = cal.component(.weekday, from: now) - 1
+            let otherWeekday = weekdays[(todayIndex + 1) % 7]
+            expect(HeadsUpStore.parseEvent(id: "i", label: "10am to 11am, Planning, \(otherWeekday)", now: now) == nil,
+                   "heads-up: another weekday's chip rejected")
+            expect(HeadsUpStore.parseEvent(id: "j", label: "10am to 11am, Planning, \(weekdays[todayIndex])", now: now) != nil,
+                   "heads-up: today's weekday accepted")
+            let month = months[cal.component(.month, from: now) - 1]
+            let day = cal.component(.day, from: now)
+            let dated = HeadsUpStore.parseEvent(
+                id: "k", label: "10am to 10:50am, Coffee with Sam, Keran McKenzie, Accepted, No location, \(month) \(day), 2026", now: now)
+            expect(dated?.title == "Coffee with Sam", "heads-up: dated label parses with clean title (got \(dated?.title ?? "nil"))")
+            expect(HeadsUpStore.parseEvent(id: "l", label: "10am to 11am, Planning, \(month) \(day + 1), 2026", now: now) == nil,
+                   "heads-up: another day's dated chip rejected")
+
+            expect(HeadsUpStore.isGmail(URL(string: "https://mail.google.com/mail/u/0/")!), "heads-up: gmail host matches")
+            expect(!HeadsUpStore.isGmail(URL(string: "https://calendar.google.com/")!), "heads-up: calendar isn't gmail")
+            expect(HeadsUpStore.isCalendar(URL(string: "https://calendar.google.com/calendar/u/0/r")!), "heads-up: calendar host matches")
+        }
+
         // Cost accountant register (D3: aggressive rounding, no false precision)
         expect(CostAccountant.countPhrase(13) == "about a dozen", "dozen phrasing")
         expect(CostAccountant.spanPhrase(days: 21) == "the past three weeks", "three weeks phrasing")

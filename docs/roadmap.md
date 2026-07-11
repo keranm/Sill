@@ -25,6 +25,13 @@ a bare `file://` opens the open panel, Finder drops on the rail open new tabs).
 Both toggles live in Sill's first Settings window (⌘,); the shared posture is
 safe-out-of-the-box, the user opts in.
 
+Built 2026-07-11, unreleased: heads-up favorites (Gmail unread badge on the
+favorite chip, upcoming-meeting card in the rail with click-through to the
+event — read from the user's own signed-in pages, opt-in via Settings), and
+always-loaded favorites (every favorite's shared tab materializes at launch
+and stays alive — Dock model, instant selection; favoriting a live tab now
+adopts it in place).
+
 ---
 
 ## Next up
@@ -81,10 +88,53 @@ safe-out-of-the-box, the user opts in.
   `DisplayNames.observationDomain`, not `HostDisplay.registrableDomain`
   (the standing subdomain-collapsing trap). Medium effort, not started.
 
-## Considered and declined (2026-07-10 community-feedback triage)
+From the 2026-07-11 streamer-needs triage (asks common among streamers,
+weighed the usual way — none touch the learning engine, so none are gated on
+the "who is Sill for" memo; they're shell features that also serve any
+screensharing or single-monitor user):
+
+- **"On Air" mode (streaming-safe privacy).** The strongest fit of the
+  batch: streamers fear leaking personal context on stream, and Sill is
+  unusually well placed because *every* personal surface is local and
+  enumerable — we can actually guarantee coverage where Chrome can't say
+  what autofill might volunteer. One manual toggle (palette command + menu
+  item, obvious "on air" indicator) that suppresses, for the session:
+  Home's greeting/Recent/suggestion cards, the palette's history and
+  bookmark groups (typed URLs and search still work), heads-up badges and
+  the meeting card, the downloads popover, and transient toasts. Manual
+  only — auto-detecting screen capture is surveillance-adjacent and stays
+  out. Medium effort.
+- **Per-tab mute + audio indicator.** Mute one tab (a VOD, a second
+  stream) without silencing the app. WebKit only exposes this via private
+  API (`_setPageMuted:`, `_isPlayingAudio` for the rail's speaker glyph) —
+  same guarded, `responds(to:)`-checked risk tier as the Inspector,
+  developer-extras, and context-menu SPI already shipped; degrades to the
+  item simply not appearing. Autoplay-off (shipped) already prevents
+  *surprise* audio; this covers deliberately playing media. Small effort.
+- **Floating Quick Look (always-on-top pop-out player).** Single-monitor
+  streamers want chat/reference video floating over a game. Quick Look
+  *is* Sill's pop-out window already — add a "Float on Top" toggle
+  (`NSWindow.level = .floating`, public API, remember the choice per
+  window) and it covers the ask. Small effort. True picture-in-picture
+  (video-only, chromeless) has no public WKWebView path on macOS; note it
+  as a possible deeper slice only if floating Quick Look proves
+  insufficient in real use.
+- **Idle-tab auto-hibernation.** Our honest formulation of the "RAM/CPU
+  caps" ask (caps themselves declined below): hibernation is Sill's
+  existing answer to browser weight, but today it only fires on workspace
+  switch. Dehydrating ordinary background tabs after N idle minutes
+  (favorites exempt — always-loaded by design; pinned and audible tabs
+  likely exempt too) would keep Sill light *within* a workspace during a
+  long gaming/streaming session, using machinery that already exists.
+  Small-to-medium effort; needs a think about restore friction before
+  building (scroll/URL snapshots already make restores cheap).
+
+## Considered and declined
 
 Community asks weighed against Sill's identity (local-first, deterministic,
-no LLM, consent-first, WebKit). Recorded so they aren't relitigated:
+no LLM, consent-first, WebKit). Recorded so they aren't relitigated.
+
+From the 2026-07-10 community-feedback triage:
 
 - **Enterprise session security / DLP / BYOD / Shadow IT tracking** — wrong
   customer (Island/Citrix enterprise-browser market), and philosophically
@@ -105,6 +155,45 @@ no LLM, consent-first, WebKit). Recorded so they aren't relitigated:
 - Also noted: the "seamless context switching / unified workspace
   management" gap named in enterprise-browser research *is* Sill's
   workspaces + hibernation — validation of the core bet, no work item.
+
+From the 2026-07-11 streamer-needs triage:
+
+- **Hard CPU/RAM caps ("resource limiters", Opera GX's headline)** — not
+  buildable honestly on WebKit: embedders get no per-page CPU or memory
+  budget API (Safari's own throttling is WebKit-internal), so a "limiter"
+  UI would be theatre. Sill's real answer is hibernation — dormant tabs
+  release their whole WebContent process, which is more than a cap ever
+  delivers — and the shippable slice of this ask is the idle-tab
+  auto-hibernation item under Proposed.
+- **Blocking pre-roll/mid-roll video ads (Twitch/YouTube)** — the display
+  and tracker-network layer is already shipped (EasyList adservers content
+  blocker, 42.5k domains). But stream-embedded ads are increasingly
+  stitched into the video server-side, where no declarative content
+  blocker can reach; the extensions that manage it live in a weekly
+  player-patching arms race that contradicts calm-and-deterministic and
+  would break constantly under WebKit's rule model. Decline the promise
+  rather than half-keep it; revisit only if WebKit's content-blocker
+  surface materially changes.
+- **"Metal-rendered" hardware-accelerated video pop-outs** — the premise
+  is wrong: WKWebView video already decodes on the media engine
+  (VideoToolbox) and composites on the GPU; a bespoke Metal pipeline
+  wouldn't remove CPU cost that isn't there. The honest kernel — a
+  genuinely chromeless, near-zero-overhead floating player — would mean
+  a native AVPlayer window fed by the stream's raw HLS URL, i.e. building
+  and maintaining a custom Twitch client (token handshakes, ad
+  stitching, API churn) inside a browser: a separate product, and a
+  fragile one. The shippable slice is the floating always-on-top Quick
+  Look window already under Proposed, which inherits WebKit's existing
+  hardware path for free.
+- **Clipboard-to-Twitch-chat macro (global shortcut posts links to chat)**
+  — declined on two hard constraints at once: Sill makes zero network
+  calls of its own, and posting to Twitch's chat API on the user's behalf
+  is exactly that (plus automated actions in the user's name, which the
+  observation posture has always ruled out); and a global clipboard
+  interceptor is the kind of quiet surveillance Sill exists to reject.
+  If the H6 MCP layer lands, an external, user-run agent could do this
+  itself with Sill merely exposing page context, logged on the Learning
+  page — the right shape for any "act on my behalf" ask.
 
 ## Accepted gaps (revisit only on new evidence)
 

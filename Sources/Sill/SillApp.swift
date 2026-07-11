@@ -184,6 +184,19 @@ struct SillApp: App {
 
                 Divider()
 
+                // Heads-up favorites debugging: what does the poll see right
+                // now? Runs the reads even with the toggle off — explicitly
+                // invoked, and the report states the toggle state.
+                Button("Copy Heads-Up Diagnostics") {
+                    Task {
+                        let report = await store.headsUp.diagnosticsReport()
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(report, forType: .string)
+                    }
+                }
+
+                Divider()
+
                 Button("New API Client Tab") {
                     store.newAPIClientTab()
                 }

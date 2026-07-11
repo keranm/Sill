@@ -32,14 +32,22 @@ final class TabStore {
     private(set) var favorites: [Favorite] = []
 
     /// The one shared, workspace-independent tab backing each Favorite —
-    /// created lazily on first open, then kept alive for the rest of the
-    /// run (never dehydrated, since it never belongs to any `Workspace.tabs`
-    /// for `switchWorkspace`'s hibernation loop to find). This is the actual
-    /// fix for favorites drifting into different states per workspace: there
-    /// used to be one independent `BrowserTab` per workspace that had ever
-    /// opened this favorite, each free to navigate away on its own. Now
-    /// there's exactly one, same object no matter which workspace is active.
+    /// created and loaded at launch (owner ask, 2026-07-11: favorites are
+    /// Dock-like, "loaded at all times... information you need at your
+    /// fingertips"; clicking one must be instant), then kept alive for the
+    /// rest of the run (never dehydrated, since it never belongs to any
+    /// `Workspace.tabs` for `switchWorkspace`'s hibernation loop to find).
+    /// One shared tab is also the actual fix for favorites drifting into
+    /// different states per workspace: there used to be one independent
+    /// `BrowserTab` per workspace that had ever opened this favorite, each
+    /// free to navigate away on its own. Now there's exactly one, same
+    /// object no matter which workspace is active.
     private(set) var favoriteTabs: [Favorite.ID: BrowserTab] = [:]
+
+    /// Favorites the user has actually put on stage this run — the ones
+    /// whose backing tab is *their* state, not just launch preloading.
+    /// removeFavorite uses it to decide demote-versus-discard.
+    @ObservationIgnored private var touchedFavoriteIDs: Set<Favorite.ID> = []
 
     /// Non-nil while a Favorite's shared tab is what's actually on stage,
     /// overriding the active workspace's own selection. Cleared by selecting
@@ -95,6 +103,24 @@ final class TabStore {
         }
     }
 
+    /// Settings toggle: heads-up favorites — the Gmail unread badge and the
+    /// upcoming-meeting card, read from the favorites' own signed-in pages
+    /// (HeadsUp.swift). Off by default — keeping mail and calendar loaded in
+    /// the background and reading what's on them is the user's call.
+    var headsUpEnabled: Bool = UserDefaults.standard.bool(forKey: "headsUpFavorites") {
+        didSet {
+            UserDefaults.standard.set(headsUpEnabled, forKey: "headsUpFavorites")
+            if headsUpEnabled {
+                headsUp.kick()
+            } else {
+                headsUp.clear()
+            }
+        }
+    }
+
+    /// Glanceability for the Google favorites (owner ask, 2026-07-11).
+    let headsUp = HeadsUpStore()
+
     @ObservationIgnored private var db: Database!
     @ObservationIgnored private lazy var webKitDelegate = WebKitDelegate(store: self)
     @ObservationIgnored private var bannerTask: Task<Void, Never>?
@@ -142,6 +168,13 @@ final class TabStore {
         } else {
             materializeSelected(in: activeWorkspace)
         }
+        // Favorites load at launch and stay loaded (owner, 2026-07-11):
+        // they're Dock-like — clicking one must be instant, and glanceable
+        // info (heads-up) must be there without a first click warming it up.
+        for favorite in favorites {
+            ensureFavoriteTab(favorite)
+        }
+        headsUp.attach(to: self)
     }
 
     /// Confirm's one sanctioned action (PRD §3.5): the workspace is born
@@ -844,15 +877,58 @@ final class TabStore {
         let domain = DisplayNames.observationDomain(for: url.host() ?? url.absoluteString)
         guard !favorites.contains(where: { DisplayNames.observationDomain(for: $0.url.host() ?? "") == domain }) else { return }
 
-        favorites.append(Favorite(id: UUID(), url: url, title: title))
+        let favorite = Favorite(id: UUID(), url: url, title: title)
+        favorites.append(favorite)
         persistFavorites()
 
-        // Favoriting converts the tab — it disappears from the list as the
-        // favorite appears, not a duplicate. Discovery runs first so closing
-        // (and tearing down the webview) can't race the JS evaluation.
+        // Favoriting converts the tab — it leaves the workspace list and
+        // becomes the favorite's own always-loaded backing tab, page state
+        // intact. Discovery runs first so the move can't race the JS
+        // evaluation.
         discoverAndCacheFavicon(for: url, sourceTab: sourceTab) { [weak self] in
-            if let sourceTab { self?.closeTab(sourceTab) }
+            guard let self else { return }
+            if let sourceTab, let workspace = self.workspace(containing: sourceTab) {
+                self.adoptAsFavoriteTab(sourceTab, for: favorite, from: workspace)
+            } else {
+                // Nothing adoptable (no source, or it lives outside every
+                // workspace, e.g. Quick Look's) — load the favorite fresh.
+                self.ensureFavoriteTab(favorite)
+            }
         }
+    }
+
+    /// Moves a workspace tab out of its workspace and installs it as the
+    /// favorite's shared backing tab, keeping its live page. The user made
+    /// this tab, so it counts as touched (removal demotes it back).
+    private func adoptAsFavoriteTab(_ tab: BrowserTab, for favorite: Favorite, from workspace: Workspace) {
+        // A favorite's tab can't stay panel-paired — the partner reference
+        // would dangle across workspace switches (same rule as formPanel).
+        if let partner = panelPartner(of: tab, in: workspace) {
+            tab.panelPartnerID = nil
+            tab.panelIsLeft = false
+            partner.panelPartnerID = nil
+            partner.panelIsLeft = false
+        }
+        let wasSelected = workspace.selectedTabID == tab.id
+        workspace.tabs.removeAll { $0.id == tab.id }
+        if wasSelected {
+            workspace.selectedTabID = workspace.tabs.first?.id
+        }
+        // Re-anchor the pin to the favorite's URL (an inherited pin may
+        // point at an older anchor).
+        tab.unpin()
+        tab.pin()
+        favoriteTabs[favorite.id] = tab
+        touchedFavoriteIDs.insert(favorite.id)
+        materialize(tab)
+        if workspace.id == activeWorkspaceID, workspace.tabs.isEmpty {
+            newTab() // keeps the workspace viable; selects via the setter
+        }
+        if wasSelected, workspace.id == activeWorkspaceID {
+            // After newTab, whose selection would otherwise clear this.
+            selectedFavoriteID = favorite.id
+        }
+        persistTabs(of: workspace)
     }
 
     /// The shared tab currently backing a favorite, if it's ever been opened
@@ -865,15 +941,21 @@ final class TabStore {
         favoriteTabs.values.contains { $0.id == tab.id }
     }
 
-    /// Removing a favorite demotes its shared tab (if it was ever opened)
-    /// back into an ordinary Tabs-stack tab in the *current* workspace — it
-    /// must not stay stranded with no workspace at all, and it must not
-    /// close. If it was what's currently on stage, selection moves to it in
-    /// its new, ordinary home rather than leaving the stage blank.
+    /// Removing a favorite the user has actually put on stage this run
+    /// demotes its shared tab back into an ordinary Tabs-stack tab in the
+    /// *current* workspace — real state must not close or strand. But since
+    /// every favorite is preloaded at launch, an untouched one's tab is just
+    /// launch warming, not the user's — that one goes away with the chip
+    /// instead of dumping a never-clicked tab into the workspace.
     func removeFavorite(_ favorite: Favorite) {
         favorites.removeAll { $0.id == favorite.id }
         persistFavorites()
         guard let tab = favoriteTabs.removeValue(forKey: favorite.id) else { return }
+        guard touchedFavoriteIDs.contains(favorite.id) else {
+            Task { await tab.dehydrate() }
+            return
+        }
+        touchedFavoriteIDs.remove(favorite.id)
         tab.unpin()
         activeWorkspace.tabs.append(tab)
         persistTabs(of: activeWorkspace)
@@ -883,25 +965,39 @@ final class TabStore {
     }
 
     /// Favorites act like a Dock icon: the same shared tab regardless of
-    /// which workspace is active, created lazily on first open and kept
-    /// alive (never dehydrated — it never belongs to any workspace's `tabs`
-    /// for `switchWorkspace`'s hibernation loop to find) for the rest of the
-    /// run. Pinned, so outbound links open in Quick Look rather than
-    /// replacing it.
+    /// which workspace is active, loaded since launch and kept alive (never
+    /// dehydrated — it never belongs to any workspace's `tabs` for
+    /// `switchWorkspace`'s hibernation loop to find) for the rest of the
+    /// run. Clicking is pure selection — instant, nothing to load. Pinned,
+    /// so outbound links open in Glance rather than replacing it.
     func openFavorite(_ favorite: Favorite) {
+        ensureFavoriteTab(favorite)
+        touchedFavoriteIDs.insert(favorite.id)
+        selectedFavoriteID = favorite.id
+    }
+
+    /// The favorite's always-loaded shared tab, created and materialized on
+    /// demand — without touching selection (background creation must never
+    /// steal the stage) and without recording a tab_open observation (not a
+    /// user action). Called for every favorite at launch; openFavorite and
+    /// heads-up polling then find the same live tab here.
+    @discardableResult
+    func ensureFavoriteTab(_ favorite: Favorite) -> BrowserTab {
         if let existing = favoriteTabs[favorite.id] {
             materialize(existing)
-            selectedFavoriteID = favorite.id
-            return
+            return existing
         }
         let tab = BrowserTab(url: favorite.url, title: favorite.title) { [weak self] in
             self?.persistSession()
         }
         favoriteTabs[favorite.id] = tab
         materialize(tab)
+        // A detached webview keeps its zero frame until first shown, and
+        // Gmail/Calendar only render their real UI (and Calendar its event
+        // chips) at a plausible viewport size.
+        tab.webView?.frame = CGRect(x: 0, y: 0, width: 1280, height: 860)
         tab.pin()
-        selectedFavoriteID = favorite.id
-        observations.recordTabEvent(kind: "tab_open", workspaceID: activeWorkspace.id.uuidString)
+        return tab
     }
 
     /// Persisted favicon fetch for Pinned/Favorited tabs: discover the page's

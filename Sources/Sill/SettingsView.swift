@@ -39,6 +39,24 @@ struct SettingsView: View {
                 .foregroundStyle(Tokens.inkFaint)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+                .overlay(Tokens.hairline)
+                .padding(.vertical, 6)
+
+            Toggle(isOn: $store.headsUpEnabled) {
+                Text("Heads-up favorites")
+                    .font(Tokens.font(13, .medium))
+                    .foregroundStyle(Tokens.ink)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+
+            Text("Glanceable counts on your Favorites — unread mail on Gmail, pending updates on Home Assistant — and a small card when a Google Calendar meeting is about to start (click it to jump to that meeting). Sill reads this from your own signed-in pages, already loaded; nothing is sent anywhere. Off by default: reading your mail, calendar and home is your decision.")
+                .font(Tokens.font(11.5))
+                .foregroundStyle(Tokens.inkFaint)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
         .frame(width: 400)
