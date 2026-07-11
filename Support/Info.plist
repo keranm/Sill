@@ -4,6 +4,22 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Sill</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Web Page</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.html</string>
+				<string>public.xhtml</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>Sill</string>
 	<key>CFBundleIconFile</key>
@@ -15,27 +31,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.3.4</string>
-	<!-- The default-browser dropdown (Launch Services) lists apps that claim
-	     the http/https schemes AND declare they can view HTML documents.
-	     Without this section Sill is invisible in System Settings > Desktop
-	     & Dock > Default web browser, schemes alone don't qualify. -->
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Web Page</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>public.html</string>
-				<string>public.xhtml</string>
-			</array>
-			<key>LSHandlerRank</key>
-			<string>Default</string>
-		</dict>
-	</array>
+	<string>0.3.5</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -53,7 +49,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>202607092154</string>
+	<string>202607110211</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSAppTransportSecurity</key>

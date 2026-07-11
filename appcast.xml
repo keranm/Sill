@@ -372,5 +372,29 @@
       ]]></description>
       <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.4/sill.zip" length="3612548" type="application/octet-stream" sparkle:edSignature="BZnmZZavCEtVQUt6+zADlVFqnd50Ox77rDNjO5UlE3QEAeOZrkylsDlfKDAmErwYFD5rsINZdrhXKR2Nr58+Bg==" />
     </item>
+    <item>
+      <title>Version 0.3.5</title>
+      <pubDate>Sat, 11 Jul 2026 02:12:14 +0000</pubDate>
+      <sparkle:version>202607110211</sparkle:version>
+      <sparkle:shortVersionString>0.3.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p>Sill 0.3.5 brings your day to the sidebar — before you've clicked anything.</p>
+<ul>
+  <li><b>Heads-up favorites</b>: flip one switch in Settings (⌘,) and your favorites start telling you what's waiting — an unread count on Gmail, pending updates on Home Assistant, and a small card when a Google Calendar meeting is about to start. Click the card and you land on that meeting, details open. Sill reads this from your own signed-in pages, right on your Mac — no accounts to connect, and nothing sent anywhere, ever. Off by default: your mail is yours.</li>
+  <li><b>Favorites, always ready</b>: your favorite sites now load when Sill opens and stay loaded — clicking one is instant, from any workspace. Favoriting an open tab keeps the page exactly as it was, too.</li>
+  <li><b>Default browser, properly</b>: Sill now shows up in System Settings › Desktop &amp; Dock as a choice for your default browser.</li>
+</ul>
+<p style="margin-top:16px; font-style:italic; color:#6b7280;">
+  Morning on the sill —<br>
+  one unread, a meeting soon —<br>
+  the day settles in.
+</p>
+<p style="margin-top:16px;">
+  <a href="https://github.com/keranm/Sill/compare/v0.3.4...v0.3.5">Full changelog</a> for anyone who wants the technical detail.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/keranm/Sill/releases/download/v0.3.5/sill.zip" length="3686705" type="application/octet-stream" sparkle:edSignature="1wJfsULNjNgNYUQKqRe5EXx8cVnOeKRmYu96x65r4SFUx0rvJ7GiSbu+6HVEfoqQsoAAk3etYceJUNiV9SaiDg==" />
+    </item>
   </channel>
 </rss>
